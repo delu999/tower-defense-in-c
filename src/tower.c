@@ -1,0 +1,285 @@
+#include "tower.h"
+#include "map.h"
+#include "bullet.h"
+#include "enemy.h"
+#include "pathfinding.h"
+#include "config.h"
+#include <math.h>
+#include <stdio.h>
+
+// Get base sprite index for tower type (non-rotating platform)
+static int GetTowerBaseSpriteIndex(TowerType type) {
+    switch (type) {
+        case TOWER_VULCAN:  return SPRITE_TOWER_BASE_VULCAN;
+        case TOWER_DCA:     return SPRITE_TOWER_BASE_DCA;
+        case TOWER_FREEZE:  return SPRITE_TOWER_BASE_FREEZE;
+        case TOWER_MISSILE: return SPRITE_TOWER_BASE_MISSILE;
+        case TOWER_PLASMA:  return SPRITE_TOWER_BASE_PLASMA;
+        case TOWER_WALL:    return SPRITE_TOWER_BASE_WALL;
+        default:            return SPRITE_TOWER_BASE_VULCAN;
+    }
+}
+
+// Get gun sprite index for tower type (rotating turret)
+static int GetTowerGunSpriteIndex(TowerType type) {
+    switch (type) {
+        case TOWER_VULCAN:  return SPRITE_TOWER_GUN_VULCAN;
+        case TOWER_DCA:     return SPRITE_TOWER_GUN_DCA;
+        case TOWER_FREEZE:  return SPRITE_TOWER_GUN_FREEZE;
+        case TOWER_MISSILE: return SPRITE_TOWER_GUN_MISSILE;
+        case TOWER_PLASMA:  return SPRITE_TOWER_GUN_PLASMA;
+        default:            return -1;  // Wall has no gun
+    }
+}
+
+int PlaceTower(GameState *state, TowerType type, int grid_x, int grid_y) {
+    // Check affordability
+    if (state->currency < TOWER_STATS[type].cost) {
+        printf("Not enough currency to place tower\n");
+        return -1;
+    }
+
+    // Check if tile is buildable
+    if (!IsBuildable(&state->map, grid_x, grid_y)) {
+        printf("Cannot place tower here\n");
+        return -1;
+    }
+
+    // Check max towers
+    if (state->tower_count >= MAX_TOWERS) {
+        printf("Max tower limit reached\n");
+        return -1;
+    }
+
+    // Temporarily mark tile as blocked for path validation
+    TileType old_type = GetTileType(&state->map, grid_x, grid_y);
+    SetTileType(&state->map, grid_x, grid_y, TILE_BLOCKED);
+
+    // Validate that all paths are still valid
+    if (!ValidatePaths(&state->map)) {
+        // Restore tile
+        SetTileType(&state->map, grid_x, grid_y, old_type);
+        printf("Cannot place tower: enemies would be stuck!\n");
+        return -1;
+    }
+
+    // Place the tower
+    int index = state->tower_count++;
+    Tower *tower = &state->towers[index];
+
+    tower->type = type;
+    tower->grid_x = grid_x;
+    tower->grid_y = grid_y;
+    tower->position = GridToWorld(grid_x, grid_y);
+    tower->fire_countdown = 0;
+    tower->target_enemy_id = -1;
+    tower->rotation = 0;
+    tower->active = true;
+
+    // Deduct cost
+    state->currency -= TOWER_STATS[type].cost;
+    printf("Placed %s tower at (%d, %d) for $%d\n",
+           (const char*[]){"Vulcan", "DCA", "Freeze", "Missile", "Plasma", "Wall"}[type],
+           grid_x, grid_y, TOWER_STATS[type].cost);
+
+    // Recalculate paths for all enemies
+    for (int i = 0; i < state->enemy_count; i++) {
+        if (state->enemies[i].active) {
+            RecalculateEnemyPath(&state->enemies[i], &state->map);
+        }
+    }
+
+    return index;
+}
+
+void RemoveTower(GameState *state, int index) {
+    if (index < 0 || index >= state->tower_count) return;
+
+    Tower *tower = &state->towers[index];
+
+    // Restore tile
+    SetTileType(&state->map, tower->grid_x, tower->grid_y, TILE_BUILDABLE);
+
+    // Recalculate paths for all enemies
+    for (int i = 0; i < state->enemy_count; i++) {
+        if (state->enemies[i].active) {
+            RecalculateEnemyPath(&state->enemies[i], &state->map);
+        }
+    }
+
+    // Swap with last (O(1) removal)
+    state->towers[index] = state->towers[state->tower_count - 1];
+    state->tower_count--;
+}
+
+int FindNearestEnemy(const GameState *state, Vector2 tower_pos, float range) {
+    int nearest = -1;
+    float min_dist_sq = range * range * TILE_SIZE * TILE_SIZE;
+
+    for (int i = 0; i < state->enemy_count; i++) {
+        if (!state->enemies[i].active) continue;
+
+        Vector2 diff = {
+            state->enemies[i].position.x - tower_pos.x,
+            state->enemies[i].position.y - tower_pos.y
+        };
+        float dist_sq = diff.x * diff.x + diff.y * diff.y;
+
+        if (dist_sq < min_dist_sq) {
+            min_dist_sq = dist_sq;
+            nearest = i;
+        }
+    }
+
+    return nearest;
+}
+
+void FireBullet(GameState *state, int tower_index) {
+    Tower *tower = &state->towers[tower_index];
+    const TowerStats *stats = &TOWER_STATS[tower->type];
+
+    if (tower->target_enemy_id < 0) return;
+
+    switch (tower->type) {
+        case TOWER_DCA: {
+            // DCA: spawn 4 bullets with staggered timing (handled by fire_countdown)
+            float damage_per_bullet = stats->damage / 4.0f;
+            SpawnBullet(state, BULLET_STANDARD, tower->position,
+                       tower->target_enemy_id, damage_per_bullet);
+            break;
+        }
+
+        case TOWER_FREEZE: {
+            // Freeze: AoE slow effect (no bullet)
+            for (int i = 0; i < state->enemy_count; i++) {
+                if (!state->enemies[i].active) continue;
+
+                Vector2 diff = {
+                    state->enemies[i].position.x - tower->position.x,
+                    state->enemies[i].position.y - tower->position.y
+                };
+                float dist = sqrtf(diff.x * diff.x + diff.y * diff.y);
+
+                if (dist < stats->range * TILE_SIZE) {
+                    state->enemies[i].freeze_timer = FREEZE_DURATION;
+                }
+            }
+            break;
+        }
+
+        case TOWER_MISSILE: {
+            // Missile: spawn missile bullet (splash on impact)
+            SpawnBullet(state, BULLET_MISSILE, tower->position,
+                       tower->target_enemy_id, stats->damage);
+            break;
+        }
+
+        case TOWER_PLASMA: {
+            // Plasma: standard bullet
+            SpawnBullet(state, BULLET_PLASMA, tower->position,
+                       tower->target_enemy_id, stats->damage);
+            break;
+        }
+
+        case TOWER_VULCAN:
+        default: {
+            // Vulcan: standard bullet
+            SpawnBullet(state, BULLET_STANDARD, tower->position,
+                       tower->target_enemy_id, stats->damage);
+            break;
+        }
+
+        case TOWER_WALL:
+            // Wall doesn't shoot
+            break;
+    }
+}
+
+void UpdateTowers(GameState *state, float dt) {
+    for (int i = 0; i < state->tower_count; i++) {
+        Tower *tower = &state->towers[i];
+        if (!tower->active) continue;
+
+        const TowerStats *stats = &TOWER_STATS[tower->type];
+
+        // Wall doesn't do anything
+        if (tower->type == TOWER_WALL) continue;
+
+        // Find target
+        int target_id = FindNearestEnemy(state, tower->position, stats->range);
+        tower->target_enemy_id = target_id;
+
+        // Rotate toward target
+        if (target_id >= 0) {
+            Enemy *target = &state->enemies[target_id];
+            float dx = target->position.x - tower->position.x;
+            float dy = target->position.y - tower->position.y;
+            float target_angle = atan2f(dy, dx) * 180.0f / 3.14159f;
+
+            // Lerp rotation
+            float angle_diff = target_angle - tower->rotation;
+            while (angle_diff > 180) angle_diff -= 360;
+            while (angle_diff < -180) angle_diff += 360;
+
+            float max_rotation = TOWER_ROTATION_SPEED * dt;
+            if (fabsf(angle_diff) < max_rotation) {
+                tower->rotation = target_angle;
+            } else {
+                tower->rotation += (angle_diff > 0 ? max_rotation : -max_rotation);
+            }
+        }
+
+        // Fire countdown
+        tower->fire_countdown -= dt;
+        if (tower->fire_countdown <= 0 && target_id >= 0) {
+            FireBullet(state, i);
+
+            // Reset countdown
+            if (stats->fire_rate > 0) {
+                tower->fire_countdown = 1.0f / stats->fire_rate;
+
+                // DCA special: fire 4 shots with small delays
+                if (tower->type == TOWER_DCA) {
+                    tower->fire_countdown = DCA_BURST_DELAY;  // Fast burst
+                }
+            }
+        }
+    }
+}
+
+void DrawTowers(const GameState *state, Texture2D spritesheet) {
+    for (int i = 0; i < state->tower_count; i++) {
+        const Tower *tower = &state->towers[i];
+        if (!tower->active) continue;
+
+        // Draw base (non-rotating)
+        int base_id = GetTowerBaseSpriteIndex(tower->type);
+        int base_sx = (base_id % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+        int base_sy = (base_id / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+        Rectangle base_src = {base_sx, base_sy, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
+        Rectangle dest = {
+            tower->position.x - TILE_SIZE / 2,
+            tower->position.y - TILE_SIZE / 2,
+            TILE_SIZE,
+            TILE_SIZE
+        };
+        DrawTexturePro(spritesheet, base_src, dest, (Vector2){0, 0}, 0, WHITE);
+
+        // Draw gun (rotating) - walls have no gun
+        int gun_id = GetTowerGunSpriteIndex(tower->type);
+        if (gun_id >= 0) {
+            int gun_sx = (gun_id % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+            int gun_sy = (gun_id / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+            Rectangle gun_src = {gun_sx, gun_sy, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
+            // For rotation, dest must be positioned at center and origin at center
+            Rectangle gun_dest = {
+                tower->position.x,
+                tower->position.y,
+                TILE_SIZE,
+                TILE_SIZE
+            };
+            Vector2 origin = {TILE_SIZE / 2.0f, TILE_SIZE / 2.0f};
+            DrawTexturePro(spritesheet, gun_src, gun_dest, origin, tower->rotation, WHITE);
+        }
+    }
+}
