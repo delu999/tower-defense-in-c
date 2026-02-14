@@ -77,8 +77,9 @@ static const EnemyStats ENEMY_STATS[] = {
 #define SPRITE_TILE_SIZE 128
 #define SPRITE_SHEET_COLS 23
 
-// Helper: convert Kenney tile number (1-based) to 0-based sprite index
-#define TILE_NUM(n) ((n) - 1)
+// Helper: Kenney tile number maps directly to spritesheet index
+// (index 0 in the sheet is unused; tile001 is at index 1, tile002 at index 2, etc.)
+#define TILE_NUM(n) (n)
 
 // Map tile sprite indices (Kenney tile numbers)
 #define SPRITE_TREE        TILE_NUM(130)   // Green tree/bush (border)

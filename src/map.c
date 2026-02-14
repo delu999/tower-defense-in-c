@@ -65,20 +65,23 @@ static void InitLevel1(Map *map) {
         map->cell_types[y][map->width - 1] = TILE_BLOCKED;
     }
 
-    // Spawn points: left edge of playable area (col 1, rows 4-7)
-    map->spawn_count = 4;
-    for (int i = 0; i < 4; i++) {
-        int y = 4 + i;
-        map->spawn_points[i] = (Vector2){1, y};
-        map->cell_types[y][1] = TILE_SPAWN;
+    // Spawn points: left rock border (col 0, rows 2 to height-3)
+    // Enemies enter from the left edge, entire inner area stays buildable
+    int inner_top = 2;
+    int inner_bottom = map->height - 3;
+    map->spawn_count = inner_bottom - inner_top + 1;
+    for (int i = 0; i < map->spawn_count; i++) {
+        int y = inner_top + i;
+        map->spawn_points[i] = (Vector2){0, y};
+        map->cell_types[y][0] = TILE_SPAWN;
     }
 
-    // Base points: right edge of playable area (col 16, rows 4-7)
-    map->base_count = 4;
-    for (int i = 0; i < 4; i++) {
-        int y = 4 + i;
-        map->base_points[i] = (Vector2){map->width - 2, y};
-        map->cell_types[y][map->width - 2] = TILE_BASE;
+    // Base points: right rock border (col width-1, rows 2 to height-3)
+    map->base_count = inner_bottom - inner_top + 1;
+    for (int i = 0; i < map->base_count; i++) {
+        int y = inner_top + i;
+        map->base_points[i] = (Vector2){map->width - 1, y};
+        map->cell_types[y][map->width - 1] = TILE_BASE;
     }
 }
 
