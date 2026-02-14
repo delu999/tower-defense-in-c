@@ -47,40 +47,40 @@ typedef enum {
 
 // Structs
 typedef struct {
-    int tiles[MAP_HEIGHT][MAP_WIDTH];
+    i32 tiles[MAP_HEIGHT][MAP_WIDTH];
     TileType cell_types[MAP_HEIGHT][MAP_WIDTH];
     Vector2 spawn_points[16];
-    int spawn_count;
+    i32 spawn_count;
     Vector2 base_points[16];
-    int base_count;
-    int width;
-    int height;
+    i32 base_count;
+    i32 width;
+    i32 height;
 } Map;
 
 typedef struct {
     TowerType type;
     Vector2 position;
-    int grid_x, grid_y;
-    float fire_countdown;
-    int target_enemy_id;
-    float rotation;
+    i32 grid_x, grid_y;
+    f32 fire_countdown;
+    i32 target_enemy_id;
+    f32 rotation;
     bool active;
 } Tower;
 
 typedef struct {
     EnemyType type;
     Vector2 position;
-    float health, max_health;
-    float base_speed;
-    float speed_factor;
-    float freeze_timer;
-    int reward;
-    int damage_to_base;
-    float difficulty;
+    f32 health, max_health;
+    f32 base_speed;
+    f32 speed_factor;
+    f32 freeze_timer;
+    i32 reward;
+    i32 damage_to_base;
+    f32 difficulty;
     Vector2 path[MAX_PATH_LEN];
-    int path_len;
-    int path_index;
-    float shield_hp;
+    i32 path_len;
+    i32 path_index;
+    f32 shield_hp;
     bool active;
 } Enemy;
 
@@ -88,28 +88,28 @@ typedef struct {
     BulletType type;
     Vector2 position;
     Vector2 direction;
-    float speed;
-    float damage;
-    float max_range;
-    float distance_traveled;
-    int target_enemy_id;
+    f32 speed;
+    f32 damage;
+    f32 max_range;
+    f32 distance_traveled;
+    i32 target_enemy_id;
     bool active;
 } Bullet;
 
 typedef struct {
     EnemyType enemy_type;
-    int quantity;
-    float difficulty;
+    i32 quantity;
+    f32 difficulty;
 } WaveEntry;
 
 typedef struct {
     WaveEntry *waves;
-    int *wave_sizes;
-    int total_waves;
-    int current_wave;
-    int enemies_spawned;
-    float spawn_timer;
-    float countdown_timer;
+    i32 *wave_sizes;
+    i32 total_waves;
+    i32 current_wave;
+    i32 enemies_spawned;
+    f32 spawn_timer;
+    f32 countdown_timer;
     bool wave_active;
 } WaveManager;
 
@@ -120,21 +120,21 @@ typedef struct {
     GameScreen screen;
     Map map;
     Tower towers[MAX_TOWERS];
-    int tower_count;
+    i32 tower_count;
     Enemy enemies[MAX_ENEMIES];
-    int enemy_count;
+    i32 enemy_count;
     Bullet bullets[MAX_BULLETS];
-    int bullet_count;
+    i32 bullet_count;
     WaveManager wave_mgr;
-    int currency;
-    int base_life;
-    int current_level;
+    i32 currency;
+    i32 base_life;
+    i32 current_level;
     UIState *ui;  // Pointer to avoid circular dependency
 } GameState;
 
 // Game functions
-void InitGame(GameState *state, int level);
-void UpdateGame(GameState *state, float dt);
+void InitGame(GameState *state, i32 level);
+void UpdateGame(GameState *state, f32 dt);
 void DrawGame(const GameState *state, Texture2D spritesheet, Font font);
 void CleanupGame(GameState *state);
 

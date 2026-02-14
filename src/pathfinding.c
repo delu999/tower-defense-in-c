@@ -8,27 +8,27 @@
 
 // Helper structures for A*
 typedef struct {
-    int x, y;
-    float g, h, f;  // g = cost from start, h = heuristic, f = g + h
-    int parent_x, parent_y;
+    i32 x, y;
+    f32 g, h, f;  // g = cost from start, h = heuristic, f = g + h
+    i32 parent_x, parent_y;
     bool in_open, in_closed;
 } Node;
 
 typedef struct {
     Node **nodes;
-    int count;
-    int capacity;
+    i32 count;
+    i32 capacity;
 } PriorityQueue;
 
 // Chebyshev distance (for 8-directional movement)
-static float Heuristic(int x1, int y1, int x2, int y2) {
-    int dx = abs(x1 - x2);
-    int dy = abs(y1 - y2);
-    return (float)fmax(dx, dy);  // Chebyshev distance
+static f32 Heuristic(i32 x1, i32 y1, i32 x2, i32 y2) {
+    i32 dx = abs(x1 - x2);
+    i32 dy = abs(y1 - y2);
+    return (f32)fmax(dx, dy);  // Chebyshev distance
 }
 
 // Priority queue operations
-static void PQ_Init(PriorityQueue *pq, int capacity) {
+static void PQ_Init(PriorityQueue *pq, i32 capacity) {
     pq->nodes = malloc(sizeof(Node*) * capacity);
     pq->count = 0;
     pq->capacity = capacity;
@@ -42,11 +42,11 @@ static void PQ_Push(PriorityQueue *pq, Node *node) {
     if (pq->count >= pq->capacity) return;  // Full
 
     // Insert at end and bubble up
-    int i = pq->count++;
+    i32 i = pq->count++;
     pq->nodes[i] = node;
 
     while (i > 0) {
-        int parent = (i - 1) / 2;
+        i32 parent = (i - 1) / 2;
         if (pq->nodes[i]->f >= pq->nodes[parent]->f) break;
         // Swap
         Node *temp = pq->nodes[i];
@@ -63,11 +63,11 @@ static Node* PQ_Pop(PriorityQueue *pq) {
     pq->nodes[0] = pq->nodes[--pq->count];
 
     // Bubble down
-    int i = 0;
+    i32 i = 0;
     while (true) {
-        int left = 2 * i + 1;
-        int right = 2 * i + 2;
-        int smallest = i;
+        i32 left = 2 * i + 1;
+        i32 right = 2 * i + 2;
+        i32 smallest = i;
 
         if (left < pq->count && pq->nodes[left]->f < pq->nodes[smallest]->f) {
             smallest = left;
@@ -93,9 +93,9 @@ static bool PQ_IsEmpty(const PriorityQueue *pq) {
 }
 
 // Check if diagonal movement is valid (both adjacent orthogonal cells must be clear)
-static bool CanMoveDiagonal(const Map *map, int from_x, int from_y, int to_x, int to_y) {
-    int dx = to_x - from_x;
-    int dy = to_y - from_y;
+static bool CanMoveDiagonal(const Map *map, i32 from_x, i32 from_y, i32 to_x, i32 to_y) {
+    i32 dx = to_x - from_x;
+    i32 dy = to_y - from_y;
 
     // Not a diagonal move
     if (abs(dx) != 1 || abs(dy) != 1) return true;
@@ -107,33 +107,33 @@ static bool CanMoveDiagonal(const Map *map, int from_x, int from_y, int to_x, in
     return orth1 && orth2;
 }
 
-int FindPath(const Map *map, Vector2 start_grid, const Vector2 *goals, int goal_count,
-             Vector2 *out_path, int max_path_len) {
+i32 FindPath(const Map *map, Vector2 start_grid, const Vector2 *goals, i32 goal_count,
+             Vector2 *out_path, i32 max_path_len) {
     if (goal_count == 0) return 0;
 
-    int start_x = (int)start_grid.x;
-    int start_y = (int)start_grid.y;
+    i32 start_x = (i32)start_grid.x;
+    i32 start_y = (i32)start_grid.y;
 
     // Find closest goal using Chebyshev distance
-    int closest_goal = 0;
-    float min_dist = Heuristic(start_x, start_y, (int)goals[0].x, (int)goals[0].y);
-    for (int i = 1; i < goal_count; i++) {
-        float dist = Heuristic(start_x, start_y, (int)goals[i].x, (int)goals[i].y);
+    i32 closest_goal = 0;
+    f32 min_dist = Heuristic(start_x, start_y, (i32)goals[0].x, (i32)goals[0].y);
+    for (i32 i = 1; i < goal_count; i++) {
+        f32 dist = Heuristic(start_x, start_y, (i32)goals[i].x, (i32)goals[i].y);
         if (dist < min_dist) {
             min_dist = dist;
             closest_goal = i;
         }
     }
 
-    int goal_x = (int)goals[closest_goal].x;
-    int goal_y = (int)goals[closest_goal].y;
+    i32 goal_x = (i32)goals[closest_goal].x;
+    i32 goal_y = (i32)goals[closest_goal].y;
 
     // Initialize node grid
     Node nodes[MAP_HEIGHT][MAP_WIDTH];
     memset(nodes, 0, sizeof(nodes));
 
-    for (int y = 0; y < map->height; y++) {
-        for (int x = 0; x < map->width; x++) {
+    for (i32 y = 0; y < map->height; y++) {
+        for (i32 x = 0; x < map->width; x++) {
             nodes[y][x].x = x;
             nodes[y][x].y = y;
             nodes[y][x].g = INFINITY;
@@ -158,9 +158,9 @@ int FindPath(const Map *map, Vector2 start_grid, const Vector2 *goals, int goal_
     start_node->in_open = true;
 
     // 8 directions: N, NE, E, SE, S, SW, W, NW
-    const int dx[] = {0, 1, 1, 1, 0, -1, -1, -1};
-    const int dy[] = {-1, -1, 0, 1, 1, 1, 0, -1};
-    const float cost[] = {1.0f, 1.414f, 1.0f, 1.414f, 1.0f, 1.414f, 1.0f, 1.414f};  // sqrt(2) for diagonals
+    const i32 dx[] = {0, 1, 1, 1, 0, -1, -1, -1};
+    const i32 dy[] = {-1, -1, 0, 1, 1, 1, 0, -1};
+    const f32 cost[] = {1.0f, 1.414f, 1.0f, 1.414f, 1.0f, 1.414f, 1.0f, 1.414f};  // sqrt(2) for diagonals
 
     bool found = false;
     Node *goal_node = NULL;
@@ -172,8 +172,8 @@ int FindPath(const Map *map, Vector2 start_grid, const Vector2 *goals, int goal_
         current->in_closed = true;
 
         // Check if reached any goal
-        for (int i = 0; i < goal_count; i++) {
-            if (current->x == (int)goals[i].x && current->y == (int)goals[i].y) {
+        for (i32 i = 0; i < goal_count; i++) {
+            if (current->x == (i32)goals[i].x && current->y == (i32)goals[i].y) {
                 found = true;
                 goal_node = current;
                 break;
@@ -183,9 +183,9 @@ int FindPath(const Map *map, Vector2 start_grid, const Vector2 *goals, int goal_
         if (found) break;
 
         // Explore neighbors
-        for (int dir = 0; dir < 8; dir++) {
-            int nx = current->x + dx[dir];
-            int ny = current->y + dy[dir];
+        for (i32 dir = 0; dir < 8; dir++) {
+            i32 nx = current->x + dx[dir];
+            i32 ny = current->y + dy[dir];
 
             // Out of bounds
             if (nx < 0 || nx >= map->width || ny < 0 || ny >= map->height) continue;
@@ -198,7 +198,7 @@ int FindPath(const Map *map, Vector2 start_grid, const Vector2 *goals, int goal_
             // Check diagonal blocking
             if (!CanMoveDiagonal(map, current->x, current->y, nx, ny)) continue;
 
-            float tentative_g = current->g + cost[dir];
+            f32 tentative_g = current->g + cost[dir];
 
             if (tentative_g < neighbor->g) {
                 neighbor->parent_x = current->x;
@@ -222,7 +222,7 @@ int FindPath(const Map *map, Vector2 start_grid, const Vector2 *goals, int goal_
     }
 
     // Build path backwards
-    int path_len = 0;
+    i32 path_len = 0;
     Node *current = goal_node;
     while (current->parent_x != -1 && path_len < max_path_len) {
         out_path[path_len++] = (Vector2){current->x, current->y};
@@ -235,7 +235,7 @@ int FindPath(const Map *map, Vector2 start_grid, const Vector2 *goals, int goal_
     }
 
     // Reverse path (currently backwards)
-    for (int i = 0; i < path_len / 2; i++) {
+    for (i32 i = 0; i < path_len / 2; i++) {
         Vector2 temp = out_path[i];
         out_path[i] = out_path[path_len - 1 - i];
         out_path[path_len - 1 - i] = temp;
@@ -247,14 +247,14 @@ int FindPath(const Map *map, Vector2 start_grid, const Vector2 *goals, int goal_
 bool ValidatePaths(const Map *map) {
     // BFS from each spawn to check if any base is reachable
 
-    for (int s = 0; s < map->spawn_count; s++) {
-        int start_x = (int)map->spawn_points[s].x;
-        int start_y = (int)map->spawn_points[s].y;
+    for (i32 s = 0; s < map->spawn_count; s++) {
+        i32 start_x = (i32)map->spawn_points[s].x;
+        i32 start_y = (i32)map->spawn_points[s].y;
 
         bool visited[MAP_HEIGHT][MAP_WIDTH] = {0};
-        int queue_x[MAP_WIDTH * MAP_HEIGHT];
-        int queue_y[MAP_WIDTH * MAP_HEIGHT];
-        int head = 0, tail = 0;
+        i32 queue_x[MAP_WIDTH * MAP_HEIGHT];
+        i32 queue_y[MAP_WIDTH * MAP_HEIGHT];
+        i32 head = 0, tail = 0;
 
         queue_x[tail] = start_x;
         queue_y[tail] = start_y;
@@ -265,13 +265,13 @@ bool ValidatePaths(const Map *map) {
 
         // BFS
         while (head < tail) {
-            int x = queue_x[head];
-            int y = queue_y[head];
+            i32 x = queue_x[head];
+            i32 y = queue_y[head];
             head++;
 
             // Check if reached a base
-            for (int b = 0; b < map->base_count; b++) {
-                if (x == (int)map->base_points[b].x && y == (int)map->base_points[b].y) {
+            for (i32 b = 0; b < map->base_count; b++) {
+                if (x == (i32)map->base_points[b].x && y == (i32)map->base_points[b].y) {
                     found_base = true;
                     break;
                 }
@@ -280,12 +280,12 @@ bool ValidatePaths(const Map *map) {
             if (found_base) break;
 
             // Explore 8 directions
-            const int dx[] = {0, 1, 1, 1, 0, -1, -1, -1};
-            const int dy[] = {-1, -1, 0, 1, 1, 1, 0, -1};
+            const i32 dx[] = {0, 1, 1, 1, 0, -1, -1, -1};
+            const i32 dy[] = {-1, -1, 0, 1, 1, 1, 0, -1};
 
-            for (int dir = 0; dir < 8; dir++) {
-                int nx = x + dx[dir];
-                int ny = y + dy[dir];
+            for (i32 dir = 0; dir < 8; dir++) {
+                i32 nx = x + dx[dir];
+                i32 ny = y + dy[dir];
 
                 if (nx < 0 || nx >= map->width || ny < 0 || ny >= map->height) continue;
                 if (visited[ny][nx]) continue;
@@ -309,16 +309,16 @@ bool ValidatePaths(const Map *map) {
     return true;
 }
 
-void DrawPath(const Vector2 *path, int path_len, Color color) {
-    for (int i = 0; i < path_len - 1; i++) {
-        Vector2 start = GridToWorld((int)path[i].x, (int)path[i].y);
-        Vector2 end = GridToWorld((int)path[i + 1].x, (int)path[i + 1].y);
+void DrawPath(const Vector2 *path, i32 path_len, Color color) {
+    for (i32 i = 0; i < path_len - 1; i++) {
+        Vector2 start = GridToWorld((i32)path[i].x, (i32)path[i].y);
+        Vector2 end = GridToWorld((i32)path[i + 1].x, (i32)path[i + 1].y);
         DrawLineEx(start, end, 4.0f, color);
     }
 
     // Draw waypoint circles
-    for (int i = 0; i < path_len; i++) {
-        Vector2 pos = GridToWorld((int)path[i].x, (int)path[i].y);
-        DrawCircle((int)pos.x, (int)pos.y, 6, color);
+    for (i32 i = 0; i < path_len; i++) {
+        Vector2 pos = GridToWorld((i32)path[i].x, (i32)path[i].y);
+        DrawCircle((i32)pos.x, (i32)pos.y, 6, color);
     }
 }

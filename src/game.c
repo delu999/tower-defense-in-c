@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 
-void InitGame(GameState *state, int level) {
+void InitGame(GameState *state, i32 level) {
     printf("Initializing level %d...\n", level);
 
     // Reset counters
@@ -39,7 +39,7 @@ void InitGame(GameState *state, int level) {
     printf("Game initialized!\n");
 }
 
-void UpdateGame(GameState *state, float dt) {
+void UpdateGame(GameState *state, f32 dt) {
     // Update UI (handles mouse input)
     UpdateUI(state->ui, state, dt);
 

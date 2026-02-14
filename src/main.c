@@ -9,7 +9,7 @@
 static Texture2D spritesheet;
 static Font font;
 
-int main(void) {
+i32 main(void) {
     // Initialize window with HiDPI support
     SetConfigFlags(FLAG_WINDOW_HIGHDPI);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Tower Defense");
@@ -49,7 +49,7 @@ int main(void) {
 
     // Main game loop
     while (!WindowShouldClose()) {
-        float dt = GetFrameTime();
+        f32 dt = GetFrameTime();
 
         // Update
         switch (state.screen) {
@@ -116,14 +116,14 @@ int main(void) {
                 DrawTextEx(font, "C + Raylib Edition", (Vector2){SCREEN_WIDTH/2 - 140, 150}, 24, 1, GRAY);
 
                 // Level buttons
-                const int button_w = 200;
-                const int button_h = 60;
-                const int button_spacing = 80;
-                const int start_y = 250;
+                const i32 button_w = 200;
+                const i32 button_h = 60;
+                const i32 button_spacing = 80;
+                const i32 start_y = 250;
 
-                for (int i = 0; i < 3; i++) {
-                    int button_x = SCREEN_WIDTH / 2 - button_w / 2;
-                    int button_y = start_y + i * button_spacing;
+                for (i32 i = 0; i < 3; i++) {
+                    i32 button_x = SCREEN_WIDTH / 2 - button_w / 2;
+                    i32 button_y = start_y + i * button_spacing;
 
                     Rectangle button = {button_x, button_y, button_w, button_h};
                     Color button_color = DARKGRAY;
@@ -142,7 +142,7 @@ int main(void) {
 
                     char level_text[32];
                     snprintf(level_text, sizeof(level_text), "Level %d", i + 1);
-                    int text_w = MeasureText(level_text, 32);
+                    i32 text_w = MeasureText(level_text, 32);
                     DrawTextEx(font, level_text,
                               (Vector2){button_x + button_w / 2 - text_w / 2, button_y + 15},
                               32, 1, WHITE);

@@ -1,0 +1,9 @@
+# Build artifacts
+build/
+tower-defense
+
+# IDE
+.vscode/
+
+# macOS
+.DS_Store

@@ -28,7 +28,7 @@ static WaveEntry level1_waves[] = {
     {ENEMY_BOSS, 1, 1.0f}
 };
 
-static int level1_wave_sizes[] = {2, 1, 2, 2, 1, 1, 1, 2, 2, 1};
+static i32 level1_wave_sizes[] = {2, 1, 2, 2, 1, 1, 1, 2, 2, 1};
 #define LEVEL1_TOTAL_WAVES 10
 
 // Level 2 wave definitions (slightly harder)
@@ -55,7 +55,7 @@ static WaveEntry level2_waves[] = {
     {ENEMY_BOSS, 2, 1.5f}
 };
 
-static int level2_wave_sizes[] = {2, 1, 2, 1, 2, 1, 2, 2, 2, 1};
+static i32 level2_wave_sizes[] = {2, 1, 2, 1, 2, 1, 2, 2, 2, 1};
 #define LEVEL2_TOTAL_WAVES 10
 
 // Level 3 wave definitions (hardest)
@@ -82,10 +82,10 @@ static WaveEntry level3_waves[] = {
     {ENEMY_BOSS, 3, 2.0f}, {ENEMY_FLYING, 50, 10.0f}
 };
 
-static int level3_wave_sizes[] = {2, 2, 2, 2, 1, 2, 2, 2, 2, 2};
+static i32 level3_wave_sizes[] = {2, 2, 2, 2, 1, 2, 2, 2, 2, 2};
 #define LEVEL3_TOTAL_WAVES 10
 
-void InitWaveManager(WaveManager *mgr, int level) {
+void InitWaveManager(WaveManager *mgr, i32 level) {
     mgr->current_wave = 0;
     mgr->enemies_spawned = 0;
     mgr->spawn_timer = 0;
@@ -133,7 +133,7 @@ void StartNextWave(GameState *state) {
     printf("Starting wave %d/%d\n", mgr->current_wave + 1, mgr->total_waves);
 }
 
-void UpdateWaveManager(GameState *state, float dt) {
+void UpdateWaveManager(GameState *state, f32 dt) {
     WaveManager *mgr = &state->wave_mgr;
 
     // Check victory condition
@@ -158,32 +158,32 @@ void UpdateWaveManager(GameState *state, float dt) {
 
         if (mgr->spawn_timer <= 0) {
             // Calculate wave start index
-            int wave_start = 0;
-            for (int i = 0; i < mgr->current_wave; i++) {
+            i32 wave_start = 0;
+            for (i32 i = 0; i < mgr->current_wave; i++) {
                 wave_start += mgr->wave_sizes[i];
             }
 
-            int wave_size = mgr->wave_sizes[mgr->current_wave];
+            i32 wave_size = mgr->wave_sizes[mgr->current_wave];
             WaveEntry *wave_entries = &mgr->waves[wave_start];
 
             // Spawn enemies from current wave
-            int total_enemies_in_wave = 0;
-            for (int i = 0; i < wave_size; i++) {
+            i32 total_enemies_in_wave = 0;
+            for (i32 i = 0; i < wave_size; i++) {
                 total_enemies_in_wave += wave_entries[i].quantity;
             }
 
             if (mgr->enemies_spawned < total_enemies_in_wave) {
                 // Find which entry to spawn from
-                int spawn_count = 0;
-                for (int i = 0; i < wave_size; i++) {
+                i32 spawn_count = 0;
+                for (i32 i = 0; i < wave_size; i++) {
                     spawn_count += wave_entries[i].quantity;
                     if (mgr->enemies_spawned < spawn_count) {
                         // Spawn this enemy type
                         EnemyType type = wave_entries[i].enemy_type;
-                        float difficulty = wave_entries[i].difficulty;
+                        f32 difficulty = wave_entries[i].difficulty;
 
                         // Random spawn point
-                        int spawn_idx = rand() % state->map.spawn_count;
+                        i32 spawn_idx = rand() % state->map.spawn_count;
                         Vector2 spawn_pos = state->map.spawn_points[spawn_idx];
 
                         SpawnEnemy(state, type, spawn_pos, difficulty);

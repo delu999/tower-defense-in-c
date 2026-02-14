@@ -4,9 +4,9 @@
 #include <stdio.h>
 
 // Helper to draw a sprite from the spritesheet at a grid position
-static void DrawSpriteAtGrid(Texture2D spritesheet, int sprite_id, int grid_x, int grid_y) {
-    int src_x = (sprite_id % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
-    int src_y = (sprite_id / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+static void DrawSpriteAtGrid(Texture2D spritesheet, i32 sprite_id, i32 grid_x, i32 grid_y) {
+    i32 src_x = (sprite_id % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+    i32 src_y = (sprite_id / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
     Rectangle src = {src_x, src_y, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
     Rectangle dest = {
         MAP_OFFSET_X + grid_x * TILE_SIZE,
@@ -22,15 +22,15 @@ static void InitLevel1(Map *map) {
     map->height = 12;
 
     // Fill everything with gray ground (buildable + walkable)
-    for (int y = 0; y < map->height; y++) {
-        for (int x = 0; x < map->width; x++) {
+    for (i32 y = 0; y < map->height; y++) {
+        for (i32 x = 0; x < map->width; x++) {
             map->tiles[y][x] = SPRITE_GROUND;
             map->cell_types[y][x] = TILE_BUILDABLE;
         }
     }
 
     // Top row: trees with rock corners
-    for (int x = 0; x < map->width; x++) {
+    for (i32 x = 0; x < map->width; x++) {
         map->tiles[0][x] = SPRITE_TREE;
         map->cell_types[0][x] = TILE_BLOCKED;
     }
@@ -38,7 +38,7 @@ static void InitLevel1(Map *map) {
     map->tiles[0][map->width - 1] = SPRITE_ROCK;
 
     // Bottom row: trees with rock corners
-    for (int x = 0; x < map->width; x++) {
+    for (i32 x = 0; x < map->width; x++) {
         map->tiles[map->height - 1][x] = SPRITE_TREE;
         map->cell_types[map->height - 1][x] = TILE_BLOCKED;
     }
@@ -46,19 +46,19 @@ static void InitLevel1(Map *map) {
     map->tiles[map->height - 1][map->width - 1] = SPRITE_ROCK;
 
     // Second row from top: green grass border
-    for (int x = 1; x < map->width - 1; x++) {
+    for (i32 x = 1; x < map->width - 1; x++) {
         map->tiles[1][x] = SPRITE_GRASS;
         map->cell_types[1][x] = TILE_BLOCKED;
     }
 
     // Second row from bottom: green grass border
-    for (int x = 1; x < map->width - 1; x++) {
+    for (i32 x = 1; x < map->width - 1; x++) {
         map->tiles[map->height - 2][x] = SPRITE_GRASS;
         map->cell_types[map->height - 2][x] = TILE_BLOCKED;
     }
 
     // Left and right columns: rocks
-    for (int y = 1; y < map->height - 1; y++) {
+    for (i32 y = 1; y < map->height - 1; y++) {
         map->tiles[y][0] = SPRITE_ROCK;
         map->cell_types[y][0] = TILE_BLOCKED;
         map->tiles[y][map->width - 1] = SPRITE_ROCK;
@@ -67,19 +67,19 @@ static void InitLevel1(Map *map) {
 
     // Spawn points: left rock border (col 0, rows 2 to height-3)
     // Enemies enter from the left edge, entire inner area stays buildable
-    int inner_top = 2;
-    int inner_bottom = map->height - 3;
+    i32 inner_top = 2;
+    i32 inner_bottom = map->height - 3;
     map->spawn_count = inner_bottom - inner_top + 1;
-    for (int i = 0; i < map->spawn_count; i++) {
-        int y = inner_top + i;
+    for (i32 i = 0; i < map->spawn_count; i++) {
+        i32 y = inner_top + i;
         map->spawn_points[i] = (Vector2){0, y};
         map->cell_types[y][0] = TILE_SPAWN;
     }
 
     // Base points: right rock border (col width-1, rows 2 to height-3)
     map->base_count = inner_bottom - inner_top + 1;
-    for (int i = 0; i < map->base_count; i++) {
-        int y = inner_top + i;
+    for (i32 i = 0; i < map->base_count; i++) {
+        i32 y = inner_top + i;
         map->base_points[i] = (Vector2){map->width - 1, y};
         map->cell_types[y][map->width - 1] = TILE_BASE;
     }
@@ -91,15 +91,15 @@ static void InitLevel2(Map *map) {
     map->height = 12;
 
     // Fill with gray ground
-    for (int y = 0; y < map->height; y++) {
-        for (int x = 0; x < map->width; x++) {
+    for (i32 y = 0; y < map->height; y++) {
+        for (i32 x = 0; x < map->width; x++) {
             map->tiles[y][x] = SPRITE_GROUND;
             map->cell_types[y][x] = TILE_BUILDABLE;
         }
     }
 
     // Borders (same as Level 1)
-    for (int x = 0; x < map->width; x++) {
+    for (i32 x = 0; x < map->width; x++) {
         map->tiles[0][x] = SPRITE_TREE;
         map->cell_types[0][x] = TILE_BLOCKED;
         map->tiles[map->height - 1][x] = SPRITE_TREE;
@@ -110,14 +110,14 @@ static void InitLevel2(Map *map) {
     map->tiles[map->height - 1][0] = SPRITE_ROCK;
     map->tiles[map->height - 1][map->width - 1] = SPRITE_ROCK;
 
-    for (int x = 1; x < map->width - 1; x++) {
+    for (i32 x = 1; x < map->width - 1; x++) {
         map->tiles[1][x] = SPRITE_GRASS;
         map->cell_types[1][x] = TILE_BLOCKED;
         map->tiles[map->height - 2][x] = SPRITE_GRASS;
         map->cell_types[map->height - 2][x] = TILE_BLOCKED;
     }
 
-    for (int y = 1; y < map->height - 1; y++) {
+    for (i32 y = 1; y < map->height - 1; y++) {
         map->tiles[y][0] = SPRITE_ROCK;
         map->cell_types[y][0] = TILE_BLOCKED;
         map->tiles[y][map->width - 1] = SPRITE_ROCK;
@@ -145,15 +145,15 @@ static void InitLevel3(Map *map) {
     map->height = 12;
 
     // Fill with gray ground
-    for (int y = 0; y < map->height; y++) {
-        for (int x = 0; x < map->width; x++) {
+    for (i32 y = 0; y < map->height; y++) {
+        for (i32 x = 0; x < map->width; x++) {
             map->tiles[y][x] = SPRITE_GROUND;
             map->cell_types[y][x] = TILE_BUILDABLE;
         }
     }
 
     // Borders (same pattern)
-    for (int x = 0; x < map->width; x++) {
+    for (i32 x = 0; x < map->width; x++) {
         map->tiles[0][x] = SPRITE_TREE;
         map->cell_types[0][x] = TILE_BLOCKED;
         map->tiles[map->height - 1][x] = SPRITE_TREE;
@@ -164,14 +164,14 @@ static void InitLevel3(Map *map) {
     map->tiles[map->height - 1][0] = SPRITE_ROCK;
     map->tiles[map->height - 1][map->width - 1] = SPRITE_ROCK;
 
-    for (int x = 1; x < map->width - 1; x++) {
+    for (i32 x = 1; x < map->width - 1; x++) {
         map->tiles[1][x] = SPRITE_GRASS;
         map->cell_types[1][x] = TILE_BLOCKED;
         map->tiles[map->height - 2][x] = SPRITE_GRASS;
         map->cell_types[map->height - 2][x] = TILE_BLOCKED;
     }
 
-    for (int y = 1; y < map->height - 1; y++) {
+    for (i32 y = 1; y < map->height - 1; y++) {
         map->tiles[y][0] = SPRITE_ROCK;
         map->cell_types[y][0] = TILE_BLOCKED;
         map->tiles[y][map->width - 1] = SPRITE_ROCK;
@@ -180,22 +180,22 @@ static void InitLevel3(Map *map) {
 
     // Spawn: left side, spread across
     map->spawn_count = 6;
-    for (int i = 0; i < 6; i++) {
-        int y = 3 + i;
+    for (i32 i = 0; i < 6; i++) {
+        i32 y = 3 + i;
         map->spawn_points[i] = (Vector2){1, y};
         map->cell_types[y][1] = TILE_SPAWN;
     }
 
     // Base: right side, spread across
     map->base_count = 6;
-    for (int i = 0; i < 6; i++) {
-        int y = 3 + i;
+    for (i32 i = 0; i < 6; i++) {
+        i32 y = 3 + i;
         map->base_points[i] = (Vector2){map->width - 2, y};
         map->cell_types[y][map->width - 2] = TILE_BASE;
     }
 }
 
-void InitMap(Map *map, int level) {
+void InitMap(Map *map, i32 level) {
     memset(map, 0, sizeof(Map));
 
     switch (level) {
@@ -219,21 +219,21 @@ void InitMap(Map *map, int level) {
 }
 
 void DrawMap(const Map *map, Texture2D spritesheet) {
-    for (int y = 0; y < map->height; y++) {
-        for (int x = 0; x < map->width; x++) {
+    for (i32 y = 0; y < map->height; y++) {
+        for (i32 x = 0; x < map->width; x++) {
             DrawSpriteAtGrid(spritesheet, map->tiles[y][x], x, y);
         }
     }
 }
 
-bool IsBuildable(const Map *map, int grid_x, int grid_y) {
+bool IsBuildable(const Map *map, i32 grid_x, i32 grid_y) {
     if (grid_x < 0 || grid_x >= map->width || grid_y < 0 || grid_y >= map->height) {
         return false;
     }
     return map->cell_types[grid_y][grid_x] == TILE_BUILDABLE;
 }
 
-bool IsWalkable(const Map *map, int grid_x, int grid_y) {
+bool IsWalkable(const Map *map, i32 grid_x, i32 grid_y) {
     if (grid_x < 0 || grid_x >= map->width || grid_y < 0 || grid_y >= map->height) {
         return false;
     }
@@ -242,27 +242,27 @@ bool IsWalkable(const Map *map, int grid_x, int grid_y) {
             type == TILE_SPAWN || type == TILE_BASE);
 }
 
-TileType GetTileType(const Map *map, int grid_x, int grid_y) {
+TileType GetTileType(const Map *map, i32 grid_x, i32 grid_y) {
     if (grid_x < 0 || grid_x >= map->width || grid_y < 0 || grid_y >= map->height) {
         return TILE_BLOCKED;
     }
     return map->cell_types[grid_y][grid_x];
 }
 
-void SetTileType(Map *map, int grid_x, int grid_y, TileType type) {
+void SetTileType(Map *map, i32 grid_x, i32 grid_y, TileType type) {
     if (grid_x >= 0 && grid_x < map->width && grid_y >= 0 && grid_y < map->height) {
         map->cell_types[grid_y][grid_x] = type;
     }
 }
 
-Vector2 GridToWorld(int grid_x, int grid_y) {
+Vector2 GridToWorld(i32 grid_x, i32 grid_y) {
     return (Vector2){
         MAP_OFFSET_X + grid_x * TILE_SIZE + TILE_SIZE / 2.0f,
         MAP_OFFSET_Y + grid_y * TILE_SIZE + TILE_SIZE / 2.0f
     };
 }
 
-void WorldToGrid(Vector2 world_pos, int *grid_x, int *grid_y) {
-    *grid_x = (int)((world_pos.x - MAP_OFFSET_X) / TILE_SIZE);
-    *grid_y = (int)((world_pos.y - MAP_OFFSET_Y) / TILE_SIZE);
+void WorldToGrid(Vector2 world_pos, i32 *grid_x, i32 *grid_y) {
+    *grid_x = (i32)((world_pos.x - MAP_OFFSET_X) / TILE_SIZE);
+    *grid_y = (i32)((world_pos.y - MAP_OFFSET_Y) / TILE_SIZE);
 }

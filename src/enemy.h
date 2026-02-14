@@ -5,13 +5,13 @@
 #include "raylib.h"
 
 // Enemy functions
-int SpawnEnemy(GameState *state, EnemyType type, Vector2 spawn_pos, float difficulty);
-void UpdateEnemies(GameState *state, float dt);
+i32 SpawnEnemy(GameState *state, EnemyType type, Vector2 spawn_pos, f32 difficulty);
+void UpdateEnemies(GameState *state, f32 dt);
 void DrawEnemies(const GameState *state, Texture2D spritesheet);
-void RemoveEnemy(GameState *state, int index);
+void RemoveEnemy(GameState *state, i32 index);
 
 // Enemy helper functions
 void RecalculateEnemyPath(Enemy *enemy, const Map *map);
-void DamageEnemy(Enemy *enemy, float damage);
+void DamageEnemy(Enemy *enemy, f32 damage);
 
 #endif // ENEMY_H

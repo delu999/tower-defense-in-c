@@ -35,12 +35,12 @@ static bool IsMouseInMap(Vector2 mouse_pos) {
 #define SHOP_HEADER_H 50
 #define SHOP_ICON_SIZE 64
 
-static Rectangle GetShopButton(int index) {
-    int col = index % SHOP_COLS;
-    int row = index / SHOP_COLS;
-    float btn_area_w = SHOP_COLS * SHOP_BTN_SIZE + (SHOP_COLS - 1) * SHOP_BTN_PAD;
-    float start_x = SHOP_X + (SHOP_WIDTH - btn_area_w) / 2;
-    float start_y = MAP_OFFSET_Y + SHOP_HEADER_H;
+static Rectangle GetShopButton(i32 index) {
+    i32 col = index % SHOP_COLS;
+    i32 row = index / SHOP_COLS;
+    f32 btn_area_w = SHOP_COLS * SHOP_BTN_SIZE + (SHOP_COLS - 1) * SHOP_BTN_PAD;
+    f32 start_x = SHOP_X + (SHOP_WIDTH - btn_area_w) / 2;
+    f32 start_y = MAP_OFFSET_Y + SHOP_HEADER_H;
     return (Rectangle){
         start_x + col * (SHOP_BTN_SIZE + SHOP_BTN_PAD),
         start_y + row * (SHOP_BTN_SIZE + 40 + SHOP_BTN_PAD),
@@ -49,21 +49,21 @@ static Rectangle GetShopButton(int index) {
     };
 }
 
-void UpdateUI(UIState *ui, GameState *game, float dt) {
+void UpdateUI(UIState *ui, GameState *game, f32 dt) {
     if (ui->alert_timer > 0) {
         ui->alert_timer -= dt;
     }
 
     Vector2 mouse_pos = GetMousePosition();
-    int mouse_grid_x, mouse_grid_y;
+    i32 mouse_grid_x, mouse_grid_y;
     WorldToGrid(mouse_pos, &mouse_grid_x, &mouse_grid_y);
 
     // Handle shop button clicks
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-        for (int i = 0; i < SHOP_TOWER_COUNT; i++) {
+        for (i32 i = 0; i < SHOP_TOWER_COUNT; i++) {
             Rectangle btn = GetShopButton(i);
             if (CheckCollisionPointRec(mouse_pos, btn)) {
-                int tower_type = SHOP_TOWER_ORDER[i];
+                i32 tower_type = SHOP_TOWER_ORDER[i];
                 if (ui->selected_tower == tower_type) {
                     ui->selected_tower = -1;
                     ui->placing_tower = false;
@@ -80,7 +80,7 @@ void UpdateUI(UIState *ui, GameState *game, float dt) {
     // Handle tower placement (only in map area)
     if (ui->placing_tower && ui->selected_tower >= 0) {
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && IsMouseInMap(mouse_pos)) {
-            int result = PlaceTower(game, ui->selected_tower, mouse_grid_x, mouse_grid_y);
+            i32 result = PlaceTower(game, ui->selected_tower, mouse_grid_x, mouse_grid_y);
             if (result < 0) {
                 if (game->currency < TOWER_STATS[ui->selected_tower].cost) {
                     ShowAlert(ui, "Not enough currency!");
@@ -101,8 +101,8 @@ void UpdateUI(UIState *ui, GameState *game, float dt) {
 
     // Handle tower inspection (click on existing tower in map)
     if (!ui->placing_tower && IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && IsMouseInMap(mouse_pos)) {
-        int found = -1;
-        for (int i = 0; i < game->tower_count; i++) {
+        i32 found = -1;
+        for (i32 i = 0; i < game->tower_count; i++) {
             if (game->towers[i].active &&
                 game->towers[i].grid_x == mouse_grid_x &&
                 game->towers[i].grid_y == mouse_grid_y) {
@@ -127,9 +127,9 @@ void UpdateUI(UIState *ui, GameState *game, float dt) {
 }
 
 // Helper to draw a sprite from the spritesheet
-static void DrawSpriteRect(Texture2D spritesheet, int sprite_id, Rectangle dest) {
-    int src_x = (sprite_id % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
-    int src_y = (sprite_id / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+static void DrawSpriteRect(Texture2D spritesheet, i32 sprite_id, Rectangle dest) {
+    i32 src_x = (sprite_id % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+    i32 src_y = (sprite_id / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
     Rectangle src = {src_x, src_y, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
     DrawTexturePro(spritesheet, src, dest, (Vector2){0, 0}, 0, WHITE);
 }
@@ -138,7 +138,7 @@ void DrawUI(const UIState *ui, const GameState *game, Texture2D spritesheet, Fon
     // --- Placement preview ---
     if (ui->placing_tower && ui->selected_tower >= 0) {
         Vector2 mouse_pos = GetMousePosition();
-        int mouse_grid_x, mouse_grid_y;
+        i32 mouse_grid_x, mouse_grid_y;
         WorldToGrid(mouse_pos, &mouse_grid_x, &mouse_grid_y);
 
         if (IsMouseInMap(mouse_pos)) {
@@ -146,26 +146,26 @@ void DrawUI(const UIState *ui, const GameState *game, Texture2D spritesheet, Fon
             bool can_place = IsBuildable(&game->map, mouse_grid_x, mouse_grid_y);
 
             // Range circle
-            float range = TOWER_STATS[ui->selected_tower].range * TILE_SIZE;
+            f32 range = TOWER_STATS[ui->selected_tower].range * TILE_SIZE;
             Color range_color = can_place ? ColorAlpha(GREEN, 0.2f) : ColorAlpha(RED, 0.2f);
-            DrawCircle((int)world_pos.x, (int)world_pos.y, range, range_color);
-            DrawCircleLines((int)world_pos.x, (int)world_pos.y, range,
+            DrawCircle((i32)world_pos.x, (i32)world_pos.y, range, range_color);
+            DrawCircleLines((i32)world_pos.x, (i32)world_pos.y, range,
                            can_place ? GREEN : RED);
 
             // Tower base preview
-            int base_sprites[] = {
+            i32 base_sprites[] = {
                 SPRITE_TOWER_BASE_VULCAN, SPRITE_TOWER_BASE_DCA,
                 SPRITE_TOWER_BASE_FREEZE, SPRITE_TOWER_BASE_MISSILE,
                 SPRITE_TOWER_BASE_PLASMA, SPRITE_TOWER_BASE_WALL
             };
-            int base_id = base_sprites[ui->selected_tower];
+            i32 base_id = base_sprites[ui->selected_tower];
             Rectangle dest = {
                 world_pos.x - TILE_SIZE / 2,
                 world_pos.y - TILE_SIZE / 2,
                 TILE_SIZE, TILE_SIZE
             };
-            int src_x = (base_id % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
-            int src_y = (base_id / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+            i32 src_x = (base_id % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+            i32 src_y = (base_id / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
             Rectangle src = {src_x, src_y, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
             DrawTexturePro(spritesheet, src, dest, (Vector2){0, 0}, 0,
                           ColorAlpha(WHITE, 0.6f));
@@ -176,10 +176,10 @@ void DrawUI(const UIState *ui, const GameState *game, Texture2D spritesheet, Fon
     if (ui->selected_tower_index >= 0 && ui->selected_tower_index < game->tower_count) {
         const Tower *tower = &game->towers[ui->selected_tower_index];
         if (tower->active) {
-            float range = TOWER_STATS[tower->type].range * TILE_SIZE;
-            DrawCircle((int)tower->position.x, (int)tower->position.y, range,
+            f32 range = TOWER_STATS[tower->type].range * TILE_SIZE;
+            DrawCircle((i32)tower->position.x, (i32)tower->position.y, range,
                       ColorAlpha(BLUE, 0.2f));
-            DrawCircleLines((int)tower->position.x, (int)tower->position.y, range, BLUE);
+            DrawCircleLines((i32)tower->position.x, (i32)tower->position.y, range, BLUE);
         }
     }
 
@@ -196,19 +196,19 @@ void DrawUI(const UIState *ui, const GameState *game, Texture2D spritesheet, Fon
               32, 1, WHITE);
 
     // Tower buttons (2x3 grid)
-    int base_sprites[] = {
+    i32 base_sprites[] = {
         SPRITE_TOWER_BASE_VULCAN, SPRITE_TOWER_BASE_DCA,
         SPRITE_TOWER_BASE_FREEZE, SPRITE_TOWER_BASE_MISSILE,
         SPRITE_TOWER_BASE_PLASMA, SPRITE_TOWER_BASE_WALL
     };
-    int gun_sprites[] = {
+    i32 gun_sprites[] = {
         SPRITE_TOWER_GUN_VULCAN, SPRITE_TOWER_GUN_DCA,
         SPRITE_TOWER_GUN_FREEZE, SPRITE_TOWER_GUN_MISSILE,
         SPRITE_TOWER_GUN_PLASMA, -1
     };
 
-    for (int i = 0; i < SHOP_TOWER_COUNT; i++) {
-        int tower_type = SHOP_TOWER_ORDER[i];
+    for (i32 i = 0; i < SHOP_TOWER_COUNT; i++) {
+        i32 tower_type = SHOP_TOWER_ORDER[i];
         Rectangle btn = GetShopButton(i);
         bool selected = (ui->selected_tower == tower_type);
         bool affordable = game->currency >= TOWER_STATS[tower_type].cost;
@@ -221,8 +221,8 @@ void DrawUI(const UIState *ui, const GameState *game, Texture2D spritesheet, Fon
         }
 
         // Tower icon (centered in top portion of button)
-        float icon_x = btn.x + (btn.width - SHOP_ICON_SIZE) / 2;
-        float icon_y = btn.y + 8;
+        f32 icon_x = btn.x + (btn.width - SHOP_ICON_SIZE) / 2;
+        f32 icon_y = btn.y + 8;
         Rectangle icon_dest = {icon_x, icon_y, SHOP_ICON_SIZE, SHOP_ICON_SIZE};
 
         // Draw base sprite
@@ -276,10 +276,10 @@ void DrawUI(const UIState *ui, const GameState *game, Texture2D spritesheet, Fon
 
     // Alert message (centered over map)
     if (ui->alert_timer > 0) {
-        float alpha = (ui->alert_timer < 1.0f) ? ui->alert_timer : 1.0f;
+        f32 alpha = (ui->alert_timer < 1.0f) ? ui->alert_timer : 1.0f;
         Color alert_color = ColorAlpha(RED, alpha);
         Vector2 alert_size = MeasureTextEx(font, ui->alert_message, 24, 1);
-        float map_center_x = MAP_OFFSET_X + (MAP_DISPLAY_COLS * TILE_SIZE) / 2.0f;
+        f32 map_center_x = MAP_OFFSET_X + (MAP_DISPLAY_COLS * TILE_SIZE) / 2.0f;
         DrawTextEx(font, ui->alert_message,
                   (Vector2){map_center_x - alert_size.x / 2, MAP_OFFSET_Y + 20},
                   24, 1, alert_color);

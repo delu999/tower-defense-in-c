@@ -1,10 +1,12 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#include "base_defs.h"
+
 // Window settings
 #define SCREEN_WIDTH 1280
 #define SCREEN_HEIGHT 720
-#define TARGET_FPS 60
+#define TARGET_FPS 120
 
 // Game constants
 #define TILE_SIZE 54
@@ -41,10 +43,10 @@
 
 // Tower stats (matching Unity Level 1 values)
 typedef struct {
-    int damage;
-    float fire_rate;      // shots per second
-    float range;          // in tiles
-    int cost;
+    i32 damage;
+    f32 fire_rate;      // shots per second
+    f32 range;          // in tiles
+    i32 cost;
 } TowerStats;
 
 static const TowerStats TOWER_STATS[] = {
@@ -58,10 +60,10 @@ static const TowerStats TOWER_STATS[] = {
 
 // Enemy stats (matching Unity values)
 typedef struct {
-    int health;
-    float speed;
-    int reward;
-    int damage_to_base;
+    i32 health;
+    f32 speed;
+    i32 reward;
+    i32 damage_to_base;
 } EnemyStats;
 
 static const EnemyStats ENEMY_STATS[] = {
@@ -119,7 +121,7 @@ static const EnemyStats ENEMY_STATS[] = {
 // Shop tower display order (matching Unity shop layout)
 // Wall, Vulcan, Plasma, Missile, DCA, Freeze
 #define SHOP_TOWER_COUNT 6
-static const int SHOP_TOWER_ORDER[] = {5, 0, 4, 3, 1, 2};
+static const i32 SHOP_TOWER_ORDER[] = {5, 0, 4, 3, 1, 2};
 static const char *SHOP_TOWER_NAMES[] = {"Wall", "Vulcan", "Plasma", "Missile", "DCA", "Freeze"};
 
 // Bullet constants

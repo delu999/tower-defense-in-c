@@ -5,13 +5,13 @@
 #include <math.h>
 #include <stdio.h>
 
-int SpawnBullet(GameState *state, BulletType type, Vector2 position,
-                int target_enemy_id, float damage) {
+i32 SpawnBullet(GameState *state, BulletType type, Vector2 position,
+                i32 target_enemy_id, f32 damage) {
     if (state->bullet_count >= MAX_BULLETS) {
         return -1;
     }
 
-    int index = state->bullet_count++;
+    i32 index = state->bullet_count++;
     Bullet *bullet = &state->bullets[index];
 
     bullet->type = type;
@@ -30,7 +30,7 @@ int SpawnBullet(GameState *state, BulletType type, Vector2 position,
             target->position.x - position.x,
             target->position.y - position.y
         };
-        float dist = sqrtf(dir.x * dir.x + dir.y * dir.y);
+        f32 dist = sqrtf(dir.x * dir.x + dir.y * dir.y);
         if (dist > 0) {
             bullet->direction.x = dir.x / dist;
             bullet->direction.y = dir.y / dist;
@@ -40,8 +40,8 @@ int SpawnBullet(GameState *state, BulletType type, Vector2 position,
     return index;
 }
 
-void UpdateBullets(GameState *state, float dt) {
-    for (int i = 0; i < state->bullet_count; i++) {
+void UpdateBullets(GameState *state, f32 dt) {
+    for (i32 i = 0; i < state->bullet_count; i++) {
         Bullet *bullet = &state->bullets[i];
         if (!bullet->active) continue;
 
@@ -67,7 +67,7 @@ void UpdateBullets(GameState *state, float dt) {
             target->position.x - bullet->position.x,
             target->position.y - bullet->position.y
         };
-        float dist_to_target = sqrtf(to_target.x * to_target.x + to_target.y * to_target.y);
+        f32 dist_to_target = sqrtf(to_target.x * to_target.x + to_target.y * to_target.y);
 
         if (dist_to_target > 0) {
             bullet->direction.x = to_target.x / dist_to_target;
@@ -75,7 +75,7 @@ void UpdateBullets(GameState *state, float dt) {
         }
 
         // Move bullet
-        float move_dist = bullet->speed * dt;
+        f32 move_dist = bullet->speed * dt;
         bullet->position.x += bullet->direction.x * move_dist;
         bullet->position.y += bullet->direction.y * move_dist;
         bullet->distance_traveled += move_dist;
@@ -92,14 +92,14 @@ void UpdateBullets(GameState *state, float dt) {
             // Apply damage
             if (bullet->type == BULLET_MISSILE) {
                 // Missile: splash damage
-                for (int e = 0; e < state->enemy_count; e++) {
+                for (i32 e = 0; e < state->enemy_count; e++) {
                     if (!state->enemies[e].active) continue;
 
                     Vector2 diff = {
                         state->enemies[e].position.x - bullet->position.x,
                         state->enemies[e].position.y - bullet->position.y
                     };
-                    float dist = sqrtf(diff.x * diff.x + diff.y * diff.y);
+                    f32 dist = sqrtf(diff.x * diff.x + diff.y * diff.y);
 
                     if (dist < MISSILE_SPLASH_RADIUS * TILE_SIZE) {
                         DamageEnemy(&state->enemies[e], bullet->damage);
@@ -108,7 +108,7 @@ void UpdateBullets(GameState *state, float dt) {
                         if (!state->enemies[e].active) {
                             EnemyType dead_type = state->enemies[e].type;
                             Vector2 dead_pos = state->enemies[e].position;
-                            int reward = state->enemies[e].reward;
+                            i32 reward = state->enemies[e].reward;
 
                             state->currency += reward;
                             printf("Enemy killed! +$%d (Total: $%d)\n", reward, state->currency);
@@ -116,12 +116,12 @@ void UpdateBullets(GameState *state, float dt) {
                             // Boss special: spawn minions on death
                             if (dead_type == ENEMY_BOSS) {
                                 printf("Boss defeated! Spawning minions...\n");
-                                int grid_x, grid_y;
+                                i32 grid_x, grid_y;
                                 WorldToGrid(dead_pos, &grid_x, &grid_y);
                                 Vector2 boss_grid = {grid_x, grid_y};
 
                                 // Spawn 5 simple enemies at boss location
-                                for (int m = 0; m < 5; m++) {
+                                for (i32 m = 0; m < 5; m++) {
                                     SpawnEnemy(state, ENEMY_SIMPLE, boss_grid, 2.0f);
                                 }
                             }
@@ -145,13 +145,13 @@ void UpdateBullets(GameState *state, float dt) {
                     if (target->type == ENEMY_BOSS) {
                         printf("Boss defeated! Spawning minions...\n");
                         Vector2 boss_grid;
-                        int grid_x, grid_y;
+                        i32 grid_x, grid_y;
                         WorldToGrid(target->position, &grid_x, &grid_y);
                         boss_grid.x = grid_x;
                         boss_grid.y = grid_y;
 
                         // Spawn 5 simple enemies at boss location
-                        for (int m = 0; m < 5; m++) {
+                        for (i32 m = 0; m < 5; m++) {
                             SpawnEnemy(state, ENEMY_SIMPLE, boss_grid, 2.0f);
                         }
                     }
@@ -168,12 +168,12 @@ void UpdateBullets(GameState *state, float dt) {
 }
 
 void DrawBullets(const GameState *state) {
-    for (int i = 0; i < state->bullet_count; i++) {
+    for (i32 i = 0; i < state->bullet_count; i++) {
         const Bullet *bullet = &state->bullets[i];
         if (!bullet->active) continue;
 
         Color color;
-        float radius;
+        f32 radius;
 
         switch (bullet->type) {
             case BULLET_MISSILE:
@@ -190,12 +190,12 @@ void DrawBullets(const GameState *state) {
                 break;
         }
 
-        DrawCircle((int)bullet->position.x, (int)bullet->position.y, radius, color);
-        DrawCircleLines((int)bullet->position.x, (int)bullet->position.y, radius, BLACK);
+        DrawCircle((i32)bullet->position.x, (i32)bullet->position.y, radius, color);
+        DrawCircleLines((i32)bullet->position.x, (i32)bullet->position.y, radius, BLACK);
     }
 }
 
-void RemoveBullet(GameState *state, int index) {
+void RemoveBullet(GameState *state, i32 index) {
     if (index < 0 || index >= state->bullet_count) return;
 
     // Swap with last (O(1) removal)

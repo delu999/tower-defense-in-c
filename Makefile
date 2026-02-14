@@ -3,6 +3,26 @@ CC = clang
 CFLAGS = -std=c23 -Wall -Wextra -O2
 LDFLAGS = -lraylib -lm
 
+# Debug mode: make DEBUG=1
+ifdef DEBUG
+CFLAGS = -std=c23 -O0 -g \
+	-Wall -Wextra -Wpedantic \
+	-Wconversion -Wsign-conversion \
+	-Wshadow -Wdouble-promotion \
+	-Wformat=2 -Wformat-overflow -Wformat-truncation \
+	-Wnull-dereference -Wuninitialized \
+	-Wstrict-prototypes -Wold-style-definition \
+	-Wmissing-prototypes -Wmissing-declarations \
+	-Wswitch-enum -Wswitch-default \
+	-Wfloat-equal -Wundef \
+	-Wunused -Wunused-parameter -Wunused-macros \
+	-Wcast-align -Wcast-qual \
+	-Wwrite-strings -Wpointer-arith \
+	-Wvla -Walloca \
+	-Wimplicit-fallthrough \
+	-Wno-unused-function
+endif
+
 # Detect OS for platform-specific flags
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)

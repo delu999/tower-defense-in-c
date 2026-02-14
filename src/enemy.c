@@ -6,7 +6,7 @@
 #include <math.h>
 
 // Get sprite index for enemy type
-static int GetEnemySpriteIndex(EnemyType type) {
+static i32 GetEnemySpriteIndex(EnemyType type) {
     switch (type) {
         case ENEMY_SIMPLE:   return SPRITE_ENEMY_SIMPLE;
         case ENEMY_FAST:     return SPRITE_ENEMY_FAST;
@@ -18,13 +18,13 @@ static int GetEnemySpriteIndex(EnemyType type) {
     }
 }
 
-int SpawnEnemy(GameState *state, EnemyType type, Vector2 spawn_pos, float difficulty) {
+i32 SpawnEnemy(GameState *state, EnemyType type, Vector2 spawn_pos, f32 difficulty) {
     if (state->enemy_count >= MAX_ENEMIES) {
         printf("Cannot spawn enemy: max limit reached\n");
         return -1;
     }
 
-    int index = state->enemy_count++;
+    i32 index = state->enemy_count++;
     Enemy *enemy = &state->enemies[index];
 
     // Initialize enemy
@@ -46,8 +46,8 @@ int SpawnEnemy(GameState *state, EnemyType type, Vector2 spawn_pos, float diffic
     }
 
     // Position at spawn
-    int spawn_x = (int)spawn_pos.x;
-    int spawn_y = (int)spawn_pos.y;
+    i32 spawn_x = (i32)spawn_pos.x;
+    i32 spawn_y = (i32)spawn_pos.y;
     enemy->position = GridToWorld(spawn_x, spawn_y);
 
     // Calculate path to base
@@ -61,7 +61,7 @@ int SpawnEnemy(GameState *state, EnemyType type, Vector2 spawn_pos, float diffic
 }
 
 void RecalculateEnemyPath(Enemy *enemy, const Map *map) {
-    int grid_x, grid_y;
+    i32 grid_x, grid_y;
     WorldToGrid(enemy->position, &grid_x, &grid_y);
     Vector2 grid_pos = {grid_x, grid_y};
 
@@ -76,13 +76,13 @@ void RecalculateEnemyPath(Enemy *enemy, const Map *map) {
 
     // Regular enemies use A* pathfinding
     Vector2 path_grid[MAX_PATH_LEN];
-    int len = FindPath(map, grid_pos, map->base_points, map->base_count,
+    i32 len = FindPath(map, grid_pos, map->base_points, map->base_count,
                        path_grid, MAX_PATH_LEN);
 
     if (len > 0) {
         enemy->path_len = len;
-        for (int i = 0; i < len; i++) {
-            enemy->path[i] = GridToWorld((int)path_grid[i].x, (int)path_grid[i].y);
+        for (i32 i = 0; i < len; i++) {
+            enemy->path[i] = GridToWorld((i32)path_grid[i].x, (i32)path_grid[i].y);
         }
         enemy->path_index = 0;
     } else {
@@ -91,8 +91,8 @@ void RecalculateEnemyPath(Enemy *enemy, const Map *map) {
     }
 }
 
-void UpdateEnemies(GameState *state, float dt) {
-    for (int i = 0; i < state->enemy_count; i++) {
+void UpdateEnemies(GameState *state, f32 dt) {
+    for (i32 i = 0; i < state->enemy_count; i++) {
         Enemy *enemy = &state->enemies[i];
         if (!enemy->active) continue;
 
@@ -111,7 +111,7 @@ void UpdateEnemies(GameState *state, float dt) {
                 target.x - enemy->position.x,
                 target.y - enemy->position.y
             };
-            float dist = sqrtf(direction.x * direction.x + direction.y * direction.y);
+            f32 dist = sqrtf(direction.x * direction.x + direction.y * direction.y);
 
             if (dist < 2.0f) {  // Reached waypoint
                 enemy->path_index++;
@@ -119,7 +119,7 @@ void UpdateEnemies(GameState *state, float dt) {
                 // Move toward waypoint
                 direction.x /= dist;
                 direction.y /= dist;
-                float speed = enemy->base_speed * enemy->speed_factor;
+                f32 speed = enemy->base_speed * enemy->speed_factor;
                 enemy->position.x += direction.x * speed * dt;
                 enemy->position.y += direction.y * speed * dt;
             }
@@ -136,15 +136,15 @@ void UpdateEnemies(GameState *state, float dt) {
 }
 
 void DrawEnemies(const GameState *state, Texture2D spritesheet) {
-    for (int i = 0; i < state->enemy_count; i++) {
+    for (i32 i = 0; i < state->enemy_count; i++) {
         const Enemy *enemy = &state->enemies[i];
         if (!enemy->active) continue;
 
-        int sprite_id = GetEnemySpriteIndex(enemy->type);
+        i32 sprite_id = GetEnemySpriteIndex(enemy->type);
 
         // Calculate source rectangle (128x128 tiles, 23 columns)
-        int src_x = (sprite_id % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
-        int src_y = (sprite_id / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+        i32 src_x = (sprite_id % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+        i32 src_y = (sprite_id / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
         Rectangle src = {src_x, src_y, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
 
         // Destination (center the sprite on enemy position)
@@ -157,16 +157,16 @@ void DrawEnemies(const GameState *state, Texture2D spritesheet) {
 
         // Draw shadow/wings for flying enemies
         if (enemy->type == ENEMY_FLYING) {
-            int shadow_sx = (SPRITE_ENEMY_FLYING_SHADOW % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
-            int shadow_sy = (SPRITE_ENEMY_FLYING_SHADOW / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+            i32 shadow_sx = (SPRITE_ENEMY_FLYING_SHADOW % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+            i32 shadow_sy = (SPRITE_ENEMY_FLYING_SHADOW / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
             Rectangle shadow_src = {shadow_sx, shadow_sy, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
             DrawTexturePro(spritesheet, shadow_src, dest, (Vector2){0, 0}, 0, WHITE);
         }
 
         // Draw shell layer for boss enemies
         if (enemy->type == ENEMY_BOSS) {
-            int shell_sx = (SPRITE_ENEMY_BOSS_SHELL % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
-            int shell_sy = (SPRITE_ENEMY_BOSS_SHELL / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+            i32 shell_sx = (SPRITE_ENEMY_BOSS_SHELL % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+            i32 shell_sy = (SPRITE_ENEMY_BOSS_SHELL / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
             Rectangle shell_src = {shell_sx, shell_sy, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
             DrawTexturePro(spritesheet, shell_src, dest, (Vector2){0, 0}, 0, WHITE);
         }
@@ -179,32 +179,32 @@ void DrawEnemies(const GameState *state, Texture2D spritesheet) {
         DrawTexturePro(spritesheet, src, dest, (Vector2){0, 0}, 0, tint);
 
         // Health bar
-        float health_ratio = enemy->health / enemy->max_health;
-        int bar_width = 48;
-        int bar_height = 6;
-        int bar_x = (int)(enemy->position.x - bar_width / 2);
-        int bar_y = (int)(enemy->position.y - TILE_SIZE / 2 - 10);
+        f32 health_ratio = enemy->health / enemy->max_health;
+        i32 bar_width = 48;
+        i32 bar_height = 6;
+        i32 bar_x = (i32)(enemy->position.x - bar_width / 2);
+        i32 bar_y = (i32)(enemy->position.y - TILE_SIZE / 2 - 10);
 
         // Background
         DrawRectangle(bar_x, bar_y, bar_width, bar_height, RED);
         // Health
-        DrawRectangle(bar_x, bar_y, (int)(bar_width * health_ratio), bar_height, GREEN);
+        DrawRectangle(bar_x, bar_y, (i32)(bar_width * health_ratio), bar_height, GREEN);
         // Border
         DrawRectangleLines(bar_x, bar_y, bar_width, bar_height, BLACK);
 
         // Shield bar (for shielded enemies)
         if (enemy->type == ENEMY_SHIELDED && enemy->shield_hp > 0) {
-            float shield_max = enemy->max_health * 0.5f;
-            float shield_ratio = enemy->shield_hp / shield_max;
-            int shield_y = bar_y - bar_height - 2;
+            f32 shield_max = enemy->max_health * 0.5f;
+            f32 shield_ratio = enemy->shield_hp / shield_max;
+            i32 shield_y = bar_y - bar_height - 2;
             DrawRectangle(bar_x, shield_y, bar_width, bar_height, DARKGRAY);
-            DrawRectangle(bar_x, shield_y, (int)(bar_width * shield_ratio), bar_height, SKYBLUE);
+            DrawRectangle(bar_x, shield_y, (i32)(bar_width * shield_ratio), bar_height, SKYBLUE);
             DrawRectangleLines(bar_x, shield_y, bar_width, bar_height, BLACK);
         }
     }
 }
 
-void RemoveEnemy(GameState *state, int index) {
+void RemoveEnemy(GameState *state, i32 index) {
     if (index < 0 || index >= state->enemy_count) return;
 
     // Swap with last enemy (O(1) removal)
@@ -212,17 +212,17 @@ void RemoveEnemy(GameState *state, int index) {
     state->enemy_count--;
 }
 
-void DamageEnemy(Enemy *enemy, float damage) {
+void DamageEnemy(Enemy *enemy, f32 damage) {
     if (!enemy->active) return;
 
     // Shielded enemy: damage goes to shield first
     if (enemy->type == ENEMY_SHIELDED && enemy->shield_hp > 0) {
-        float absorbed = damage * 0.5f;  // Shield absorbs 50% of damage
+        f32 absorbed = damage * 0.5f;  // Shield absorbs 50% of damage
         enemy->shield_hp -= absorbed;
 
         if (enemy->shield_hp <= 0) {
             // Shield broken, remaining damage goes through (with 90% reduction)
-            float overflow = -enemy->shield_hp;
+            f32 overflow = -enemy->shield_hp;
             enemy->shield_hp = 0;
             enemy->health -= overflow * 0.1f;  // 90% reduction
         }

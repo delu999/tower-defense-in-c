@@ -5,10 +5,10 @@
 #include "raylib.h"
 
 // Bullet functions
-int SpawnBullet(GameState *state, BulletType type, Vector2 position,
-                int target_enemy_id, float damage);
-void UpdateBullets(GameState *state, float dt);
+i32 SpawnBullet(GameState *state, BulletType type, Vector2 position,
+                i32 target_enemy_id, f32 damage);
+void UpdateBullets(GameState *state, f32 dt);
 void DrawBullets(const GameState *state);
-void RemoveBullet(GameState *state, int index);
+void RemoveBullet(GameState *state, i32 index);
 
 #endif // BULLET_H
