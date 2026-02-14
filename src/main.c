@@ -12,7 +12,7 @@ static Font font;
 int main(void) {
     // Initialize window with HiDPI support
     SetConfigFlags(FLAG_WINDOW_HIGHDPI);
-    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Tower Defense - C + Raylib");
+    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Tower Defense");
     SetTargetFPS(TARGET_FPS);
 
     // Load assets
