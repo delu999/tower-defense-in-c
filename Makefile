@@ -20,7 +20,8 @@ CFLAGS = -std=c23 -O0 -g \
 	-Wwrite-strings -Wpointer-arith \
 	-Wvla -Walloca \
 	-Wimplicit-fallthrough \
-	-Wno-unused-function
+	-Wno-unused-function \
+	-Wno-gnu-binary-literal -Wno-c23-extensions
 endif
 
 # Detect OS for platform-specific flags
