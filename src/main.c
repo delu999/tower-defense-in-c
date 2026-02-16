@@ -3,11 +3,62 @@
 #include "wave.h"
 #include "ui.h"
 #include "config.h"
+#include "map.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <dirent.h>
+#include <string.h>
+
+#define MAX_LEVELS 32
+#define LEVEL_NAME_MAX 64
+
+typedef struct {
+    char filename[256];
+    char name[LEVEL_NAME_MAX];
+} LevelEntry;
 
 // Global assets
 static Texture2D spritesheet;
 static Font font;
+
+// Level list
+static LevelEntry level_list[MAX_LEVELS];
+static i32 level_count = 0;
+
+static void ScanLevels(void) {
+    level_count = 0;
+
+    DIR *dir = opendir("levels");
+    if (!dir) return;
+
+    struct dirent *ent;
+    while ((ent = readdir(dir)) && level_count < MAX_LEVELS) {
+        i32 len = (i32)strlen(ent->d_name);
+        if (len < 6 || strcmp(ent->d_name + len - 5, ".conf") != 0) continue;
+
+        LevelEntry *le = &level_list[level_count];
+        snprintf(le->filename, sizeof(le->filename), "levels/%s", ent->d_name);
+
+        // Parse name from file
+        strncpy(le->name, ent->d_name, LEVEL_NAME_MAX - 1);
+        FILE *f = fopen(le->filename, "r");
+        if (f) {
+            char line[256];
+            if (fgets(line, sizeof(line), f)) {
+                i32 l = (i32)strlen(line);
+                while (l > 0 && (line[l-1] == '\n' || line[l-1] == '\r')) line[--l] = '\0';
+                if (strncmp(line, "name=", 5) == 0) {
+                    strncpy(le->name, line + 5, LEVEL_NAME_MAX - 1);
+                }
+            }
+            fclose(f);
+        }
+
+        level_count++;
+    }
+
+    closedir(dir);
+}
 
 i32 main(void) {
     // Initialize window with HiDPI support
@@ -34,6 +85,15 @@ i32 main(void) {
     }
     SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
 
+    // Scan for .conf levels
+    ScanLevels();
+
+    // If no levels found, use built-in InitLevel1/2/3
+    // This is fallback for when .conf files don't exist
+    if (level_count == 0) {
+        printf("No .conf levels found, using built-in levels\n");
+    }
+
     // Initialize game state
     GameState state = {0};
     UIState ui = {0};
@@ -46,6 +106,12 @@ i32 main(void) {
 
     printf("Assets loaded successfully!\n");
     printf("Spritesheet: %dx%d\n", spritesheet.width, spritesheet.height);
+    printf("Found %d level(s)\n", level_count);
+
+    // Menu scroll state
+    i32 menu_scroll = 0;
+    const i32 menu_item_h = 60;
+    const i32 visible_items = (SCREEN_HEIGHT - 350) / menu_item_h;
 
     // Main game loop
     while (!WindowShouldClose()) {
@@ -53,24 +119,102 @@ i32 main(void) {
 
         // Update
         switch (state.screen) {
-            case SCREEN_MENU:
-                // Simple menu: press 1, 2, or 3 to start a level
-                if (IsKeyPressed(KEY_ONE)) {
+            case SCREEN_MENU: {
+                // Handle keyboard shortcuts for first 9 levels
+                if (IsKeyPressed(KEY_ONE) && level_count > 0) {
                     state.current_level = 0;
-                    InitGame(&state, 0);
-                    state.screen = SCREEN_PLAYING;
+                    if (LoadMapFromConf(&state.map, level_list[0].filename)) {
+                        InitGame(&state, state.current_level);
+                        state.screen = SCREEN_PLAYING;
+                    }
                 }
-                if (IsKeyPressed(KEY_TWO)) {
+                if (IsKeyPressed(KEY_TWO) && level_count > 1) {
                     state.current_level = 1;
-                    InitGame(&state, 1);
-                    state.screen = SCREEN_PLAYING;
+                    if (LoadMapFromConf(&state.map, level_list[1].filename)) {
+                        InitGame(&state, state.current_level);
+                        state.screen = SCREEN_PLAYING;
+                    }
                 }
-                if (IsKeyPressed(KEY_THREE)) {
+                if (IsKeyPressed(KEY_THREE) && level_count > 2) {
                     state.current_level = 2;
-                    InitGame(&state, 2);
-                    state.screen = SCREEN_PLAYING;
+                    if (LoadMapFromConf(&state.map, level_list[2].filename)) {
+                        InitGame(&state, state.current_level);
+                        state.screen = SCREEN_PLAYING;
+                    }
+                }
+                if (IsKeyPressed(KEY_FOUR) && level_count > 3) {
+                    state.current_level = 3;
+                    if (LoadMapFromConf(&state.map, level_list[3].filename)) {
+                        InitGame(&state, state.current_level);
+                        state.screen = SCREEN_PLAYING;
+                    }
+                }
+                if (IsKeyPressed(KEY_FIVE) && level_count > 4) {
+                    state.current_level = 4;
+                    if (LoadMapFromConf(&state.map, level_list[4].filename)) {
+                        InitGame(&state, state.current_level);
+                        state.screen = SCREEN_PLAYING;
+                    }
+                }
+                if (IsKeyPressed(KEY_SIX) && level_count > 5) {
+                    state.current_level = 5;
+                    if (LoadMapFromConf(&state.map, level_list[5].filename)) {
+                        InitGame(&state, state.current_level);
+                        state.screen = SCREEN_PLAYING;
+                    }
+                }
+                if (IsKeyPressed(KEY_SEVEN) && level_count > 6) {
+                    state.current_level = 6;
+                    if (LoadMapFromConf(&state.map, level_list[6].filename)) {
+                        InitGame(&state, state.current_level);
+                        state.screen = SCREEN_PLAYING;
+                    }
+                }
+                if (IsKeyPressed(KEY_EIGHT) && level_count > 7) {
+                    state.current_level = 7;
+                    if (LoadMapFromConf(&state.map, level_list[7].filename)) {
+                        InitGame(&state, state.current_level);
+                        state.screen = SCREEN_PLAYING;
+                    }
+                }
+                if (IsKeyPressed(KEY_NINE) && level_count > 8) {
+                    state.current_level = 8;
+                    if (LoadMapFromConf(&state.map, level_list[8].filename)) {
+                        InitGame(&state, state.current_level);
+                        state.screen = SCREEN_PLAYING;
+                    }
+                }
+
+                // Mouse wheel scroll for menu
+                i32 wheel = (i32)GetMouseWheelMove();
+                if (wheel != 0) {
+                    menu_scroll -= wheel;
+                    if (menu_scroll < 0) menu_scroll = 0;
+                    if (menu_scroll > level_count - visible_items) menu_scroll = level_count - visible_items;
+                }
+
+                // Mouse click on level buttons
+                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                    Vector2 mouse = GetMousePosition();
+                    i32 start_y = 220;
+                    for (i32 i = menu_scroll; i < menu_scroll + visible_items && i < level_count; i++) {
+                        i32 button_y = start_y + (i - menu_scroll) * menu_item_h;
+                        i32 button_w = 400;
+                        i32 button_x = SCREEN_WIDTH / 2 - button_w / 2;
+
+                        Rectangle button = {button_x, button_y, button_w, menu_item_h - 4};
+                        if (CheckCollisionPointRec(mouse, button)) {
+                            state.current_level = i;
+                            if (LoadMapFromConf(&state.map, level_list[i].filename)) {
+                                InitGame(&state, state.current_level);
+                                state.screen = SCREEN_PLAYING;
+                            }
+                            break;
+                        }
+                    }
                 }
                 break;
+            }
 
             case SCREEN_PLAYING:
                 UpdateGame(&state, dt);
@@ -94,10 +238,12 @@ i32 main(void) {
                 break;
 
             case SCREEN_VICTORY:
-                if (IsKeyPressed(KEY_N) && state.current_level < 2) {
+                if (IsKeyPressed(KEY_N) && state.current_level < level_count - 1) {
                     state.current_level++;
-                    InitGame(&state, state.current_level);
-                    state.screen = SCREEN_PLAYING;
+                    if (LoadMapFromConf(&state.map, level_list[state.current_level].filename)) {
+                        InitGame(&state, state.current_level);
+                        state.screen = SCREEN_PLAYING;
+                    }
                 }
                 if (IsKeyPressed(KEY_M)) {
                     state.screen = SCREEN_MENU;
@@ -115,41 +261,59 @@ i32 main(void) {
                 DrawTextEx(font, "TOWER DEFENSE", (Vector2){SCREEN_WIDTH/2 - 220, 80}, 56, 2, DARKBLUE);
                 DrawTextEx(font, "C + Raylib Edition", (Vector2){SCREEN_WIDTH/2 - 140, 150}, 24, 1, GRAY);
 
-                // Level buttons
-                const i32 button_w = 200;
-                const i32 button_h = 60;
-                const i32 button_spacing = 80;
-                const i32 start_y = 250;
+                // Level count
+                char count_text[64];
+                snprintf(count_text, sizeof(count_text), "%d level(s) available", level_count);
+                DrawTextEx(font, count_text, (Vector2){SCREEN_WIDTH/2 - 100, 190}, 16, 1, LIGHTGRAY);
 
-                for (i32 i = 0; i < 3; i++) {
+                // Level buttons (scrollable)
+                i32 start_y = 220;
+                i32 button_w = 400;
+                i32 button_h = menu_item_h - 4;
+
+                for (i32 i = menu_scroll; i < menu_scroll + visible_items && i < level_count; i++) {
+                    i32 button_y = start_y + (i - menu_scroll) * menu_item_h;
                     i32 button_x = SCREEN_WIDTH / 2 - button_w / 2;
-                    i32 button_y = start_y + i * button_spacing;
 
                     Rectangle button = {button_x, button_y, button_w, button_h};
                     Color button_color = DARKGRAY;
 
-                    if (CheckCollisionPointRec(GetMousePosition(), button)) {
+                    Vector2 mouse = GetMousePosition();
+                    if (CheckCollisionPointRec(mouse, button)) {
                         button_color = GRAY;
-                        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-                            state.current_level = i;
-                            InitGame(&state, i);
-                            state.screen = SCREEN_PLAYING;
-                        }
                     }
 
                     DrawRectangleRec(button, button_color);
                     DrawRectangleLinesEx(button, 2, WHITE);
 
-                    char level_text[32];
-                    snprintf(level_text, sizeof(level_text), "Level %d", i + 1);
-                    i32 text_w = MeasureText(level_text, 32);
-                    DrawTextEx(font, level_text,
-                              (Vector2){button_x + button_w / 2 - text_w / 2, button_y + 15},
-                              32, 1, WHITE);
+                    // Level name
+                    DrawTextEx(font, level_list[i].name,
+                               (Vector2){button_x + 15, button_y + 8},
+                               20, 1, WHITE);
+
+                    // Keyboard shortcut
+                    if (i < 9) {
+                        char shortcut[4] = {i + '1', '\0'};
+                        DrawTextEx(font, shortcut,
+                                   (Vector2){button_x + button_w - 35, button_y + 18},
+                                   24, 1, YELLOW);
+                    }
                 }
 
-                DrawTextEx(font, "Click a level to begin, or press 1, 2, 3",
-                          (Vector2){SCREEN_WIDTH/2 - 240, 520}, 20, 1, LIGHTGRAY);
+                // Scroll indicator
+                if (level_count > visible_items) {
+                    i32 bar_x = SCREEN_WIDTH / 2 + button_w / 2 + 10;
+                    i32 bar_y = start_y;
+                    i32 bar_h = visible_items * menu_item_h;
+                    f32 thumb_h = (f32)visible_items / level_count * bar_h;
+                    f32 thumb_y = bar_y + (f32)menu_scroll / level_count * bar_h;
+
+                    DrawRectangle(bar_x, bar_y, 6, bar_h, (Color){60, 60, 60, 255});
+                    DrawRectangle(bar_x, (i32)thumb_y, 6, (i32)thumb_h, LIGHTGRAY);
+                }
+
+                DrawTextEx(font, "Click a level or press 1-9",
+                          (Vector2){SCREEN_WIDTH/2 - 140, SCREEN_HEIGHT - 60}, 18, 1, LIGHTGRAY);
                 break;
             }
 
@@ -169,7 +333,7 @@ i32 main(void) {
                 DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, ColorAlpha(BLACK, 0.6f));
                 DrawTextEx(font, "VICTORY!", (Vector2){SCREEN_WIDTH/2 - 150, 200}, 64, 2, GOLD);
                 DrawTextEx(font, "All waves defeated!", (Vector2){SCREEN_WIDTH/2 - 120, 290}, 24, 1, LIGHTGRAY);
-                if (state.current_level < 2) {
+                if (state.current_level < level_count - 1) {
                     DrawTextEx(font, "Press N for Next Level", (Vector2){SCREEN_WIDTH/2 - 150, 370}, 28, 1, YELLOW);
                 } else {
                     DrawTextEx(font, "You completed all levels!", (Vector2){SCREEN_WIDTH/2 - 165, 370}, 28, 1, GREEN);

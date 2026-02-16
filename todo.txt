@@ -1,0 +1,4 @@
+Fix
+- add enemy that can teleport
+- add enemy that can jump towers
+- add a turret that smashes enemy once placed (or maybe its just a hammer that doesnt get placed)

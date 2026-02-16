@@ -268,73 +268,64 @@ void WorldToGrid(Vector2 world_pos, i32 *grid_x, i32 *grid_y) {
     *grid_y = (i32)((world_pos.y - MAP_OFFSET_Y) / TILE_SIZE);
 }
 
-static bool ParseJsonInt(const char *json, const char *key, i32 *value) {
-    char pattern[64];
-    snprintf(pattern, sizeof(pattern), "\"%s\":", key);
-    const char *pos = strstr(json, pattern);
-    if (!pos) return false;
-    pos += strlen(pattern);
-    while (*pos == ' ' || *pos == '\n' || *pos == '\r' || *pos == '\t') pos++;
-    *value = atoi(pos);
-    return true;
-}
-
-static bool ParseJsonArray2D(const char *json, const char *key, i32 (*arr)[MAP_WIDTH], i32 height, i32 width) {
-    char pattern[64];
-    snprintf(pattern, sizeof(pattern), "\"%s\": [", key);
-    const char *pos = strstr(json, pattern);
-    if (!pos) return false;
-    
-    pos += strlen(pattern);
-    
-    for (i32 y = 0; y < height; y++) {
-        while (*pos != '[' && *pos != '\0') pos++;
-        if (*pos == '[') pos++;
-        
-        for (i32 x = 0; x < width; x++) {
-            while (*pos == ' ' || *pos == '\n' || *pos == '\r' || *pos == '\t') pos++;
-            arr[y][x] = atoi(pos);
-            while (*pos != ',' && *pos != ']' && *pos != '\0') pos++;
-            if (*pos == ',') pos++;
-        }
-        
-        while (*pos != ']' && *pos != '\0') pos++;
-        if (*pos == ']') pos++;
-        while (*pos != ',' && *pos != ']' && *pos != '\0') pos++;
-        if (*pos == ',') pos++;
-    }
-    
-    return true;
-}
-
-bool LoadMapFromFile(Map *map, const char *filename) {
+// Load map from .conf file
+bool LoadMapFromConf(Map *map, const char *filename) {
     FILE *f = fopen(filename, "r");
     if (!f) {
         printf("Failed to open level file: %s\n", filename);
         return false;
     }
-    
-    fseek(f, 0, SEEK_END);
-    long size = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    
-    char *json = malloc(size + 1);
-    if (!json) {
-        fclose(f);
-        return false;
-    }
-    
-    fread(json, 1, size, f);
-    json[size] = '\0';
-    fclose(f);
-    
+
     memset(map, 0, sizeof(Map));
-    
-    ParseJsonInt(json, "width", &map->width);
-    ParseJsonInt(json, "height", &map->height);
-    ParseJsonArray2D(json, "tiles", map->tiles, map->height, map->width);
-    ParseJsonArray2D(json, "cell_types", (i32 (*)[MAP_WIDTH])map->cell_types, map->height, map->width);
-    
+
+    char line[1024];
+    enum { SECTION_HEADER, SECTION_TILES, SECTION_TYPES } section = SECTION_HEADER;
+    i32 row = 0;
+    char level_name[64] = "Untitled";
+
+    while (fgets(line, sizeof(line), f)) {
+        // Strip newline
+        i32 len = (i32)strlen(line);
+        while (len > 0 && (line[len-1] == '\n' || line[len-1] == '\r')) line[--len] = '\0';
+
+        if (section == SECTION_HEADER) {
+            if (strncmp(line, "name=", 5) == 0) {
+                strncpy(level_name, line + 5, sizeof(level_name) - 1);
+            } else if (strncmp(line, "width=", 6) == 0) {
+                map->width = atoi(line + 6);
+            } else if (strncmp(line, "height=", 7) == 0) {
+                map->height = atoi(line + 7);
+            } else if (strcmp(line, "tiles") == 0) {
+                section = SECTION_TILES;
+                row = 0;
+            }
+        } else if (section == SECTION_TILES) {
+            if (strcmp(line, "types") == 0) {
+                section = SECTION_TYPES;
+                row = 0;
+                continue;
+            }
+            if (row < map->height) {
+                char *p = line;
+                for (i32 x = 0; x < map->width && *p; x++) {
+                    map->tiles[row][x] = (i32)strtol(p, &p, 10);
+                }
+                row++;
+            }
+        } else if (section == SECTION_TYPES) {
+            if (row < map->height) {
+                char *p = line;
+                for (i32 x = 0; x < map->width && *p; x++) {
+                    map->cell_types[row][x] = (TileType)strtol(p, &p, 10);
+                }
+                row++;
+            }
+        }
+    }
+
+    fclose(f);
+
+    // Rebuild spawn/base from types grid
     for (i32 y = 0; y < map->height; y++) {
         for (i32 x = 0; x < map->width; x++) {
             if (map->cell_types[y][x] == TILE_SPAWN && map->spawn_count < 16) {
@@ -344,9 +335,8 @@ bool LoadMapFromFile(Map *map, const char *filename) {
             }
         }
     }
-    
-    free(json);
-    printf("Map loaded from file: %s (%dx%d, %d spawns, %d bases)\n", 
-           filename, map->width, map->height, map->spawn_count, map->base_count);
+
+    printf("Map loaded from .conf: %s (%s: %dx%d, %d spawns, %d bases)\n",
+           filename, level_name, map->width, map->height, map->spawn_count, map->base_count);
     return true;
 }
