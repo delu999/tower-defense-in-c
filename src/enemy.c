@@ -68,9 +68,10 @@ void RecalculateEnemyPath(Enemy *enemy, const Map *map) {
     // Flying enemies take direct path (ignoring obstacles)
     if (enemy->type == ENEMY_FLYING) {
         enemy->path_len = 2;
-        enemy->path[0] = grid_pos;
-        enemy->path[1] = map->base_points[0];  // Fly directly to first base
+        enemy->path[0] = GridToWorld(grid_x, grid_y);
+        enemy->path[1] = GridToWorld((i32) map->base_points[0].x, (i32) grid_y);  // Fly directly to first base
         enemy->path_index = 0;
+        printf("flying enemy: path length: %d, path: (%d, %d) -> (%d, %d)\n", enemy->path_len, (int)enemy->path[0].x, (int)enemy->path[0].y, (int)enemy->path[1].x, (int)enemy->path[1].y);
         return;
     }
 
