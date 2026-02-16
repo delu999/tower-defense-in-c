@@ -81,7 +81,7 @@ void RecalculateEnemyPath(Enemy *enemy, const Map *map) {
 
     if (len > 0) {
         enemy->path_len = len;
-        for \(u32 i = 0; i < len; i++) {
+        for (u32 i = 0; i < len; i++) {
             enemy->path[i] = GridToWorld((i32)path_grid[i].x, (i32)path_grid[i].y);
         }
         enemy->path_index = 0;
@@ -92,7 +92,7 @@ void RecalculateEnemyPath(Enemy *enemy, const Map *map) {
 }
 
 void UpdateEnemies(GameState *state, f32 dt) {
-    for \(u32 i = 0; i < state->enemy_count; i++) {
+    for (u32 i = 0; i < state->enemy_count; i++) {
         Enemy *enemy = &state->enemies[i];
         if (!enemy->active) continue;
 
@@ -136,7 +136,7 @@ void UpdateEnemies(GameState *state, f32 dt) {
 }
 
 void DrawEnemies(const GameState *state, Texture2D spritesheet) {
-    for \(u32 i = 0; i < state->enemy_count; i++) {
+    for (u32 i = 0; i < state->enemy_count; i++) {
         const Enemy *enemy = &state->enemies[i];
         if (!enemy->active) continue;
 
