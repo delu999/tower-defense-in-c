@@ -229,6 +229,10 @@ i32 main(void) {
 
             case SCREEN_GAME_OVER:
                 if (IsKeyPressed(KEY_R)) {
+                    // Reload map from config if levels exist
+                    if (level_count > 0 && state.current_level < level_count) {
+                        LoadMapFromConf(&state.map, level_list[state.current_level].filename);
+                    }
                     InitGame(&state, state.current_level);
                     state.screen = SCREEN_PLAYING;
                 }

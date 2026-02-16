@@ -130,23 +130,41 @@ static void DrawPalette(const EditorState *ed) {
     DrawTextEx(ed->font, TextFormat("Type: %s", TILE_TYPE_NAMES[ed->selected_type]),
                (Vector2){4, info_y + 16}, 14, 1, LIGHTGRAY);
 
+    // Show what level number will be assigned to new saves
+    if (!ed->filename[0]) {
+        i32 next_level = 0;
+        for (i32 n = 1; n < 100; n++) {
+            char buf[256];
+            snprintf(buf, sizeof(buf), "levels/level%d.conf", n);
+            FILE *test = fopen(buf, "r");
+            if (!test) {
+                next_level = n;
+                break;
+            }
+            fclose(test);
+        }
+        if (next_level > 0) {
+            DrawTextEx(ed->font, TextFormat("New save: level%d.conf", next_level),
+                       (Vector2){4, info_y + 36}, 12, 1, YELLOW);
+        }
+    }
+
     // Controls help
-    i32 help_y = info_y + 44;
+    i32 help_y = info_y + 56;
     DrawTextEx(ed->font, "Controls:", (Vector2){4, help_y}, 14, 1, YELLOW);
     const char *help[] = {
         "Click/Drag: Paint",
         "Right-click: Flood fill",
-        "S: Set type Spawn",
-        "B: Set type Base",
+        "S/B: Set Spawn/Base",
         "G: Toggle grid",
         "Ctrl+S: Save",
-        "Ctrl+B: Browse levels",
-        "Ctrl+N: New",
+        "Ctrl+B: Level browser",
+        "Ctrl+N: New level",
         "Ctrl+Z/Y: Undo/Redo",
         "Scroll: Palette",
         "Esc: Quit"
     };
-    for (i32 i = 0; i < 11; i++) {
+    for (i32 i = 0; i < 10; i++) {
         DrawTextEx(ed->font, help[i], (Vector2){4, help_y + 16 + i * 14}, 12, 1, LIGHTGRAY);
     }
 }
@@ -174,6 +192,21 @@ static void DrawToolBar(const EditorState *ed) {
     DrawTextEx(ed->font, TextFormat("Level Editor - %s", ed->level_name),
                (Vector2){EDITOR_PANEL_WIDTH + 10, 10}, 20, 1, WHITE);
 
+    // Browse Levels button
+    const char *browse_btn = "[Browse Levels]";
+    i32 btn_w = MeasureTextEx(ed->font, browse_btn, 16, 1).x + 20;
+    i32 btn_h = 28;
+    i32 btn_x = EDITOR_PANEL_WIDTH + 10;
+    i32 btn_y = 32;
+
+    Vector2 mouse = GetMousePosition();
+    Rectangle btn_rect = {btn_x, btn_y, btn_w, btn_h};
+    bool hover = CheckCollisionPointRec(mouse, btn_rect);
+
+    DrawRectangleRec(btn_rect, hover ? (Color){100, 100, 100, 255} : (Color){70, 70, 70, 255});
+    DrawRectangleLinesEx(btn_rect, 1, WHITE);
+    DrawTextEx(ed->font, browse_btn, (Vector2){btn_x + 10, btn_y + 6}, 16, 1, hover ? YELLOW : WHITE);
+
     i32 map_info_x = EDITOR_SCREEN_WIDTH - 250;
     DrawTextEx(ed->font, TextFormat("Spawns: %d | Bases: %d", ed->map.spawn_count, ed->map.base_count),
                (Vector2){map_info_x, 10}, 16, 1, LIGHTGRAY);
@@ -185,26 +218,57 @@ static void DrawBrowser(const EditorState *ed) {
     DrawRectangle(0, 0, EDITOR_SCREEN_WIDTH, EDITOR_SCREEN_HEIGHT, (Color){30, 30, 30, 255});
 
     DrawTextEx(ed->font, "Level Browser", (Vector2){20, 20}, 28, 1, WHITE);
-    DrawTextEx(ed->font, "Click to load | Del to delete | Ctrl+B to close | Ctrl+N for new",
+    DrawTextEx(ed->font, "Click to load | Del to delete | Esc to close | Ctrl+N for new level",
                (Vector2){20, 55}, 14, 1, LIGHTGRAY);
 
-    i32 y = 90;
+    // Show next level number that will be assigned
+    i32 next_level = 0;
+    for (i32 n = 1; n < 100; n++) {
+        char buf[256];
+        snprintf(buf, sizeof(buf), "levels/level%d.conf", n);
+        FILE *test = fopen(buf, "r");
+        if (!test) {
+            next_level = n;
+            break;
+        }
+        fclose(test);
+    }
+    if (next_level > 0) {
+        char next_text[64];
+        snprintf(next_text, sizeof(next_text), "New levels will be saved as: level%d.conf", next_level);
+        DrawTextEx(ed->font, next_text, (Vector2){20, 75}, 14, 1, YELLOW);
+    }
+
+    i32 y = 105;
     i32 item_h = 36;
     for (i32 i = 0; i < ed->level_count && y < EDITOR_SCREEN_HEIGHT - 40; i++) {
         Rectangle row = {20, y, EDITOR_SCREEN_WIDTH - 40, item_h - 2};
         bool hover = CheckCollisionPointRec(GetMousePosition(), row);
-        DrawRectangleRec(row, hover ? (Color){60, 60, 60, 255} : (Color){45, 45, 45, 255});
-        DrawRectangleLinesEx(row, 1, GRAY);
+        DrawRectangleRec(row, hover ? (Color){80, 80, 80, 255} : (Color){50, 50, 50, 255});
+        DrawRectangleLinesEx(row, 1, hover ? YELLOW : GRAY);
+
+        // Level number badge
+        char num_buf[16];
+        snprintf(num_buf, sizeof(num_buf), "#%d", i + 1);
+        i32 num_w = MeasureTextEx(ed->font, num_buf, 18, 1).x + 10;
+        Rectangle badge = {25, y + 4, num_w, 22};
+        DrawRectangleRec(badge, (Color){70, 130, 180, 255});
+        DrawTextEx(ed->font, num_buf, (Vector2){30, y + 6}, 18, 1, WHITE);
 
         DrawTextEx(ed->font, ed->level_list[i].name,
-                   (Vector2){30, y + 4}, 18, 1, WHITE);
+                   (Vector2){30 + num_w + 10, y + 4}, 18, 1, WHITE);
         DrawTextEx(ed->font, ed->level_list[i].filename,
                    (Vector2){400, y + 6}, 14, 1, LIGHTGRAY);
+
+        // Delete hint
+        DrawTextEx(ed->font, "[Del]",
+                   (Vector2){EDITOR_SCREEN_WIDTH - 75, y + 8}, 12, 1, RED);
+
         y += item_h;
     }
 
     if (ed->level_count == 0) {
-        DrawTextEx(ed->font, "No .conf files found in levels/", (Vector2){20, 100}, 18, 1, LIGHTGRAY);
+        DrawTextEx(ed->font, "No .conf files found in levels/", (Vector2){20, 120}, 18, 1, LIGHTGRAY);
     }
 }
 
@@ -651,7 +715,20 @@ void UpdateEditor(EditorState *ed) {
     }
 
     // Click on palette: sprite selection
-    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && mouse.x < EDITOR_PANEL_WIDTH) {
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        // Check Browse Levels button (in toolbar)
+        const char *browse_btn = "[Browse Levels]";
+        i32 btn_w = MeasureTextEx(ed->font, browse_btn, 16, 1).x + 20;
+        i32 btn_h = 28;
+        i32 btn_x = EDITOR_PANEL_WIDTH + 10;
+        i32 btn_y = 32;
+        Rectangle btn_rect = {btn_x, btn_y, btn_w, btn_h};
+        if (CheckCollisionPointRec(mouse, btn_rect)) {
+            EditorScanLevels(ed);
+            ed->mode = MODE_BROWSE;
+            return;
+        }
+
         // Check name box click
         Rectangle name_box = {4, 20, EDITOR_PANEL_WIDTH - 8, 20};
         if (CheckCollisionPointRec(mouse, name_box)) {
@@ -659,31 +736,33 @@ void UpdateEditor(EditorState *ed) {
             return;
         }
 
-        // Check type buttons
-        for (i32 i = 0; i < 5; i++) {
-            Rectangle r = {4 + i * 42, 58, 40, 14};
-            if (CheckCollisionPointRec(mouse, r)) {
-                ed->selected_type = (TileType)i;
-                return;
+        // Check type buttons (only if clicking in left panel)
+        if (mouse.x < EDITOR_PANEL_WIDTH) {
+            for (i32 i = 0; i < 5; i++) {
+                Rectangle r = {4 + i * 42, 58, 40, 14};
+                if (CheckCollisionPointRec(mouse, r)) {
+                    ed->selected_type = (TileType)i;
+                    return;
+                }
             }
-        }
 
-        // Check palette grid
-        i32 cell = PAL_TILE_SIZE + PAL_MARGIN;
-        i32 cols = EDITOR_PALETTE_COLS;
-        i32 total_rows = (SPRITE_TOTAL_TILES + cols - 1) / cols;
-        i32 scroll = ed->palette_scroll;
-        if (scroll > total_rows - PAL_VISIBLE_ROWS) scroll = total_rows - PAL_VISIBLE_ROWS;
-        if (scroll < 0) scroll = 0;
+            // Check palette grid
+            i32 cell = PAL_TILE_SIZE + PAL_MARGIN;
+            i32 cols = EDITOR_PALETTE_COLS;
+            i32 total_rows = (SPRITE_TOTAL_TILES + cols - 1) / cols;
+            i32 scroll = ed->palette_scroll;
+            if (scroll > total_rows - PAL_VISIBLE_ROWS) scroll = total_rows - PAL_VISIBLE_ROWS;
+            if (scroll < 0) scroll = 0;
 
-        if (mouse.y >= PAL_START_Y && mouse.y < PAL_START_Y + PAL_VISIBLE_ROWS * cell) {
-            i32 col = ((i32)mouse.x - 4) / cell;
-            i32 row_in_view = ((i32)mouse.y - PAL_START_Y) / cell;
-            i32 row = row_in_view + scroll;
-            if (col >= 0 && col < cols) {
-                i32 idx = row * cols + col;
-                if (idx >= 0 && idx < SPRITE_TOTAL_TILES) {
-                    ed->selected_sprite = idx;
+            if (mouse.y >= PAL_START_Y && mouse.y < PAL_START_Y + PAL_VISIBLE_ROWS * cell) {
+                i32 col = ((i32)mouse.x - 4) / cell;
+                i32 row_in_view = ((i32)mouse.y - PAL_START_Y) / cell;
+                i32 row = row_in_view + scroll;
+                if (col >= 0 && col < cols) {
+                    i32 idx = row * cols + col;
+                    if (idx >= 0 && idx < SPRITE_TOTAL_TILES) {
+                        ed->selected_sprite = idx;
+                    }
                 }
             }
         }

@@ -158,17 +158,25 @@ void DrawUI(const UIState *ui, const GameState *game, Texture2D spritesheet, Fon
                 SPRITE_TOWER_BASE_FREEZE, SPRITE_TOWER_BASE_MISSILE,
                 SPRITE_TOWER_BASE_PLASMA, SPRITE_TOWER_BASE_WALL
             };
+            i32 gun_sprites[] = {
+                SPRITE_TOWER_GUN_VULCAN, SPRITE_TOWER_GUN_DCA,
+                SPRITE_TOWER_GUN_FREEZE, SPRITE_TOWER_GUN_MISSILE,
+                SPRITE_TOWER_GUN_PLASMA, -1
+            };
             i32 base_id = base_sprites[ui->selected_tower];
             Rectangle dest = {
                 world_pos.x - TILE_SIZE / 2,
                 world_pos.y - TILE_SIZE / 2,
                 TILE_SIZE, TILE_SIZE
             };
-            i32 src_x = (base_id % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
-            i32 src_y = (base_id / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
-            Rectangle src = {src_x, src_y, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
-            DrawTexturePro(spritesheet, src, dest, (Vector2){0, 0}, 0,
-                          ColorAlpha(WHITE, 0.6f));
+
+            // Draw base sprite
+            DrawSpriteRect(spritesheet, base_id, dest);
+
+            // Draw gun sprite on top (if applicable)
+            if (gun_sprites[ui->selected_tower] >= 0) {
+                DrawSpriteRect(spritesheet, gun_sprites[ui->selected_tower], dest);
+            }
         }
     }
 
