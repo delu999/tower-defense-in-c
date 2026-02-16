@@ -71,7 +71,6 @@ void RecalculateEnemyPath(Enemy *enemy, const Map *map) {
         enemy->path[0] = GridToWorld(grid_x, grid_y);
         enemy->path[1] = GridToWorld((i32) map->base_points[0].x, (i32) grid_y);  // Fly directly to first base
         enemy->path_index = 0;
-        printf("flying enemy: path length: %d, path: (%d, %d) -> (%d, %d)\n", enemy->path_len, (int)enemy->path[0].x, (int)enemy->path[0].y, (int)enemy->path[1].x, (int)enemy->path[1].y);
         return;
     }
 
@@ -82,7 +81,7 @@ void RecalculateEnemyPath(Enemy *enemy, const Map *map) {
 
     if (len > 0) {
         enemy->path_len = len;
-        for (i32 i = 0; i < len; i++) {
+        for \(u32 i = 0; i < len; i++) {
             enemy->path[i] = GridToWorld((i32)path_grid[i].x, (i32)path_grid[i].y);
         }
         enemy->path_index = 0;
@@ -93,7 +92,7 @@ void RecalculateEnemyPath(Enemy *enemy, const Map *map) {
 }
 
 void UpdateEnemies(GameState *state, f32 dt) {
-    for (i32 i = 0; i < state->enemy_count; i++) {
+    for \(u32 i = 0; i < state->enemy_count; i++) {
         Enemy *enemy = &state->enemies[i];
         if (!enemy->active) continue;
 
@@ -137,7 +136,7 @@ void UpdateEnemies(GameState *state, f32 dt) {
 }
 
 void DrawEnemies(const GameState *state, Texture2D spritesheet) {
-    for (i32 i = 0; i < state->enemy_count; i++) {
+    for \(u32 i = 0; i < state->enemy_count; i++) {
         const Enemy *enemy = &state->enemies[i];
         if (!enemy->active) continue;
 
