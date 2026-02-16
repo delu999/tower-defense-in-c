@@ -39,14 +39,22 @@ endif
 # Directories
 SRC_DIR = src
 BUILD_DIR = build
+EDITOR_DIR = tools/editor
 TARGET = tower-defense
+EDITOR_TARGET = level-editor
 
 # Source files
 SRCS = $(wildcard $(SRC_DIR)/*.c)
 OBJS = $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
 
+EDITOR_SRCS = $(EDITOR_DIR)/main.c $(EDITOR_DIR)/editor.c
+EDITOR_OBJS = $(BUILD_DIR)/editor_main.o $(BUILD_DIR)/editor.o
+
 # Default target
 all: $(BUILD_DIR) $(TARGET)
+
+# Editor target
+editor: $(BUILD_DIR) $(EDITOR_TARGET)
 
 # Create build directory
 $(BUILD_DIR):
@@ -57,19 +65,35 @@ $(TARGET): $(OBJS)
 	$(CC) $(OBJS) -o $(TARGET) $(LDFLAGS)
 	@echo "Build complete: $(TARGET)"
 
+# Build editor executable
+$(EDITOR_TARGET): $(EDITOR_OBJS)
+	$(CC) $(EDITOR_OBJS) -o $(EDITOR_TARGET) $(LDFLAGS)
+	@echo "Editor build complete: $(EDITOR_TARGET)"
+
 # Compile source files
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compile editor files
+$(BUILD_DIR)/editor_main.o: $(EDITOR_DIR)/main.c
+	$(CC) $(CFLAGS) -I$(SRC_DIR) -c $< -o $@
+
+$(BUILD_DIR)/editor.o: $(EDITOR_DIR)/editor.c
+	$(CC) $(CFLAGS) -I$(SRC_DIR) -c $< -o $@
 
 # Run the game
 run: $(TARGET)
 	./$(TARGET)
 
+# Run the editor
+run-editor: $(EDITOR_TARGET)
+	./$(EDITOR_TARGET)
+
 # Clean build artifacts
 clean:
-	rm -rf $(BUILD_DIR) $(TARGET)
+	rm -rf $(BUILD_DIR) $(TARGET) $(EDITOR_TARGET)
 
 # Rebuild everything
 rebuild: clean all
 
-.PHONY: all clean rebuild run
+.PHONY: all clean rebuild run editor run-editor

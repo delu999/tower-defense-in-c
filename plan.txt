@@ -1,0 +1,26 @@
+I have a tower defense game built with C23 and Raylib (installed with brew install raylib). Currently, levels/maps are hard-coded. I want you to build a graphical level editor so I can create and save levels visually instead.
+Context:
+
+The map is a tile-based grid.
+Each tile has a type (e.g., path, grass, tower placement spot, spawn point, exit point, etc.)
+Levels are currently defined as 2D arrays of tile types in the source code
+
+Requirements:
+
+Tile palette panel — A sidebar or panel showing all available tile types. I click one to select it as my "brush."
+Click-and-drag painting — I can click and drag across the grid to paint multiple tiles continuously (not point-and-click one at a time).
+Save/Load — Export the created level to a file format (e.g., JSON, custom binary, or plain text) that the game can load at runtime. Also support loading existing levels back into the editor.
+Grid overlay — Show grid lines on the map so tile boundaries are clear.
+Undo/Redo — Basic undo/redo support (nice to have).
+
+Project structure:
+
+Place the editor code in its own directory (e.g., src/editor/ or tools/editor/) to keep it separate from game logic.
+Reuse existing tile definitions/enums from the game code — don't duplicate them.
+
+Tech constraints:
+
+Use C23 and Raylib (same as the game) so it stays consistent.
+The editor can be a separate executable or a mode toggled within the game — whichever is cleaner.
+
+Please review my existing codebase first to understand the current tile types, map dimensions, and data structures before implementing.
