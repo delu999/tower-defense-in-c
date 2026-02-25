@@ -71,7 +71,7 @@ static void DrawPalette(const EditorState *ed) {
         i32 bx = 4 + i * 42;
         i32 by = 58;
         Rectangle r = {bx, by, 40, 14};
-        bool sel = (ed->selected_type == i);
+        bool sel = (ed->selected_type == (TileType)i);
         DrawRectangleRec(r, sel ? type_colors[i] : (Color){60, 60, 60, 255});
         DrawRectangleLinesEx(r, 1, sel ? WHITE : GRAY);
         DrawTextEx(ed->font, type_labels[i], (Vector2){bx + 2, by + 1}, 12, 0, sel ? BLACK : LIGHTGRAY);
