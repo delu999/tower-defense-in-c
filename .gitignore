@@ -1,6 +1,7 @@
 # Build artifacts
 build/
 tower-defense
+level-editor
 
 # IDE
 .vscode/
