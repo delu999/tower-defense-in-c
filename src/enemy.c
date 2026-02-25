@@ -1,6 +1,5 @@
 #include "enemy.h"
 #include "map.h"
-#include "pathfinding.h"
 #include "config.h"
 #include <stdio.h>
 #include <math.h>
@@ -18,9 +17,69 @@ static i32 GetEnemySpriteIndex(EnemyType type) {
     }
 }
 
+static Vector2 DirToVec(Direction dir) {
+    switch (dir) {
+        case DIR_NORTH:      return (Vector2){ 0.0f, -1.0f };
+        case DIR_SOUTH:      return (Vector2){ 0.0f,  1.0f };
+        case DIR_EAST:       return (Vector2){ 1.0f,  0.0f };
+        case DIR_WEST:       return (Vector2){-1.0f,  0.0f };
+        case DIR_NORTH_EAST: return (Vector2){ 0.70710678f, -0.70710678f };
+        case DIR_NORTH_WEST: return (Vector2){-0.70710678f, -0.70710678f };
+        case DIR_SOUTH_EAST: return (Vector2){ 0.70710678f,  0.70710678f };
+        case DIR_SOUTH_WEST: return (Vector2){-0.70710678f,  0.70710678f };
+        case DIR_NONE:
+        default:             return (Vector2){ 0.0f,  0.0f };
+    }
+}
+
+static bool IsValidDirection(Direction dir) {
+    return dir >= DIR_NONE && dir <= DIR_SOUTH_WEST;
+}
+
+static bool IsNearTileCenter(Vector2 pos, i32 grid_x, i32 grid_y) {
+    Vector2 center = GridToWorld(grid_x, grid_y);
+    f32 half_box = TILE_SIZE * 0.25f;
+    return fabsf(pos.x - center.x) <= half_box && fabsf(pos.y - center.y) <= half_box;
+}
+
+static bool MoveFallbackToWalkableNeighbor(Enemy *enemy, const Map *map, f32 speed, f32 dt) {
+    i32 grid_x, grid_y;
+    WorldToGrid(enemy->position, &grid_x, &grid_y);
+
+    const i32 dx[] = {0, 0, 1, -1};
+    const i32 dy[] = {-1, 1, 0, 0};
+
+    for (i32 k = 0; k < 4; k++) {
+        i32 nx = grid_x + dx[k];
+        i32 ny = grid_y + dy[k];
+        if (!IsWalkable(map, nx, ny)) continue;
+
+        Vector2 target = GridToWorld(nx, ny);
+        Vector2 move = {
+            target.x - enemy->position.x,
+            target.y - enemy->position.y
+        };
+        f32 len = sqrtf(move.x * move.x + move.y * move.y);
+        if (len <= 0.001f) continue;
+
+        move.x /= len;
+        move.y /= len;
+        enemy->position.x += move.x * speed * dt;
+        enemy->position.y += move.y * speed * dt;
+        return true;
+    }
+
+    return false;
+}
+
 i32 SpawnEnemy(GameState *state, EnemyType type, Vector2 spawn_pos, f32 difficulty) {
     if (state->enemy_count >= MAX_ENEMIES) {
         printf("Cannot spawn enemy: max limit reached\n");
+        return -1;
+    }
+
+    if (type < ENEMY_SIMPLE || type > ENEMY_BOSS) {
+        printf("Cannot spawn enemy: invalid enemy type %d\n", type);
         return -1;
     }
 
@@ -39,6 +98,7 @@ i32 SpawnEnemy(GameState *state, EnemyType type, Vector2 spawn_pos, f32 difficul
     enemy->freeze_timer = 0;
     enemy->shield_hp = 0;
     enemy->active = true;
+    enemy->flow_move_dir = (Vector2){0.0f, 0.0f};
 
     // Special case: shielded enemy starts with shield
     if (type == ENEMY_SHIELDED) {
@@ -50,11 +110,11 @@ i32 SpawnEnemy(GameState *state, EnemyType type, Vector2 spawn_pos, f32 difficul
     i32 spawn_y = (i32)spawn_pos.y;
     enemy->position = GridToWorld(spawn_x, spawn_y);
 
-    // Calculate path to base
-    RecalculateEnemyPath(enemy, &state->map);
+    enemy->path_len = 0;
+    enemy->path_index = 0;
 
-    if (enemy->path_len == 0) {
-        printf("Warning: spawned enemy has no path to base!\n");
+    if (type == ENEMY_FLYING) {
+        RecalculateEnemyPath(enemy, &state->map);
     }
 
     return index;
@@ -63,80 +123,120 @@ i32 SpawnEnemy(GameState *state, EnemyType type, Vector2 spawn_pos, f32 difficul
 void RecalculateEnemyPath(Enemy *enemy, const Map *map) {
     i32 grid_x, grid_y;
     WorldToGrid(enemy->position, &grid_x, &grid_y);
-    Vector2 grid_pos = {grid_x, grid_y};
 
-    // Flying enemies take direct path (ignoring obstacles)
     if (enemy->type == ENEMY_FLYING) {
+        if (map->base_count <= 0) {
+            enemy->path_len = 0;
+            enemy->path_index = 0;
+            return;
+        }
         enemy->path_len = 2;
         enemy->path[0] = GridToWorld(grid_x, grid_y);
-        enemy->path[1] = GridToWorld((i32) map->base_points[0].x, (i32) grid_y);  // Fly directly to first base
+        enemy->path[1] = GridToWorld((i32)map->base_points[0].x, (i32)map->base_points[0].y);
         enemy->path_index = 0;
         return;
     }
 
-    // Regular enemies use A* pathfinding
-    Vector2 path_grid[MAX_PATH_LEN];
-    i32 len = FindPath(map, grid_pos, map->base_points, map->base_count,
-                       path_grid, MAX_PATH_LEN);
-
-    if (len > 0) {
-        enemy->path_len = len;
-        for (u32 i = 0; i < len; i++) {
-            enemy->path[i] = GridToWorld((i32)path_grid[i].x, (i32)path_grid[i].y);
-        }
-        enemy->path_index = 0;
-    } else {
-        enemy->path_len = 0;
-        enemy->path_index = 0;
-    }
+    enemy->path_len = 0;
+    enemy->path_index = 0;
 }
 
 void UpdateEnemies(GameState *state, f32 dt) {
-    for (u32 i = 0; i < state->enemy_count; i++) {
+    for (i32 i = 0; i < state->enemy_count; i++) {
         Enemy *enemy = &state->enemies[i];
         if (!enemy->active) continue;
 
-        // Update freeze timer
-        if (enemy->freeze_timer > 0) {
+        if (enemy->freeze_timer > 0.0f) {
             enemy->freeze_timer -= dt;
             enemy->speed_factor = FREEZE_SLOW_FACTOR;
         } else {
             enemy->speed_factor = 1.0f;
         }
 
-        // Movement
-        if (enemy->path_index < enemy->path_len) {
-            Vector2 target = enemy->path[enemy->path_index];
-            Vector2 direction = {
-                target.x - enemy->position.x,
-                target.y - enemy->position.y
-            };
-            f32 dist = sqrtf(direction.x * direction.x + direction.y * direction.y);
+        if (enemy->type == ENEMY_FLYING) {
+            if (state->map.base_count <= 0) continue;
 
-            if (dist < 2.0f) {  // Reached waypoint
-                enemy->path_index++;
-            } else {
-                // Move toward waypoint
-                direction.x /= dist;
-                direction.y /= dist;
-                f32 speed = enemy->base_speed * enemy->speed_factor;
-                enemy->position.x += direction.x * speed * dt;
-                enemy->position.y += direction.y * speed * dt;
+            Vector2 base_world = GridToWorld(
+                (i32)state->map.base_points[0].x,
+                (i32)state->map.base_points[0].y
+            );
+
+            Vector2 dir = {
+                base_world.x - enemy->position.x,
+                base_world.y - enemy->position.y
+            };
+            f32 dist = sqrtf(dir.x * dir.x + dir.y * dir.y);
+
+            if (dist < 4.0f) {
+                state->base_life -= enemy->damage_to_base;
+                printf("Enemy reached base! Base life: %d\n", state->base_life);
+                RemoveEnemy(state, i);
+                i--;
+                continue;
             }
-        } else {
-            // Reached base
+
+            dir.x /= dist;
+            dir.y /= dist;
+
+            f32 speed = enemy->base_speed * enemy->speed_factor;
+            enemy->position.x += dir.x * speed * dt;
+            enemy->position.y += dir.y * speed * dt;
+            continue;
+        }
+
+        i32 grid_x, grid_y;
+        WorldToGrid(enemy->position, &grid_x, &grid_y);
+
+        if (GetTileType(&state->map, grid_x, grid_y) == TILE_BASE) {
             state->base_life -= enemy->damage_to_base;
             printf("Enemy reached base! Base life: %d\n", state->base_life);
-
-            // Deactivate enemy
             RemoveEnemy(state, i);
-            i--;  // Adjust index after removal
+            i--;
+            continue;
+        }
+
+        if (!state->flow_field ||
+            grid_x < 0 || grid_x >= state->map.width ||
+            grid_y < 0 || grid_y >= state->map.height) {
+            continue;
+        }
+
+        i32 idx = grid_y * state->map.width + grid_x;
+        Direction dir = state->flow_field[idx];
+        if (!IsValidDirection(dir)) {
+            enemy->flow_move_dir = (Vector2){0.0f, 0.0f};
+            continue;
+        }
+        if (dir == DIR_NONE || GetTileType(&state->map, grid_x, grid_y) == TILE_BLOCKED) {
+            f32 speed = enemy->base_speed * enemy->speed_factor;
+            enemy->flow_move_dir = (Vector2){0.0f, 0.0f};
+            (void)MoveFallbackToWalkableNeighbor(enemy, &state->map, speed, dt);
+            continue;
+        }
+
+        if (IsNearTileCenter(enemy->position, grid_x, grid_y) ||
+            (enemy->flow_move_dir.x == 0.0f && enemy->flow_move_dir.y == 0.0f)) {
+            enemy->flow_move_dir = DirToVec(dir);
+        }
+
+        Vector2 v = enemy->flow_move_dir;
+        f32 speed = enemy->base_speed * enemy->speed_factor;
+        enemy->position.x += v.x * speed * dt;
+        enemy->position.y += v.y * speed * dt;
+
+        WorldToGrid(enemy->position, &grid_x, &grid_y);
+        if (GetTileType(&state->map, grid_x, grid_y) == TILE_BASE) {
+            state->base_life -= enemy->damage_to_base;
+            printf("Enemy reached base! Base life: %d\n", state->base_life);
+            RemoveEnemy(state, i);
+            i--;
+            continue;
         }
     }
 }
 
 void DrawEnemies(const GameState *state, Texture2D spritesheet) {
-    for (u32 i = 0; i < state->enemy_count; i++) {
+    for (i32 i = 0; i < state->enemy_count; i++) {
         const Enemy *enemy = &state->enemies[i];
         if (!enemy->active) continue;
 

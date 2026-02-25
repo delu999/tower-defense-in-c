@@ -7,6 +7,7 @@
 #include "wave.h"
 #include "ui.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 void InitGame(GameState *state, i32 level) {
@@ -19,6 +20,12 @@ void InitGame(GameState *state, i32 level) {
     state->currency = STARTING_CURRENCY;
     state->base_life = STARTING_BASE_LIFE;
     state->current_level = level;
+
+    if (state->flow_field) {
+        free(state->flow_field);
+        state->flow_field = NULL;
+    }
+    state->show_flow_field = false;
 
     // Clear all entities
     memset(state->towers, 0, sizeof(state->towers));
@@ -34,6 +41,11 @@ void InitGame(GameState *state, i32 level) {
     // Validate paths
     if (!ValidatePaths(&state->map)) {
         printf("WARNING: Map has unreachable areas!\n");
+    }
+
+    state->flow_field = CreateFlowField(&state->map);
+    if (!state->flow_field) {
+        printf("WARNING: Failed to create flow field\n");
     }
 
     // Initialize wave manager
@@ -57,6 +69,10 @@ void UpdateGame(GameState *state, f32 dt) {
 
     // Update enemies
     UpdateEnemies(state, dt);
+
+    if (IsKeyPressed(KEY_F)) {
+        state->show_flow_field = !state->show_flow_field;
+    }
 }
 
 void DrawGame(const GameState *state, Texture2D spritesheet, Font font) {
@@ -105,9 +121,16 @@ void DrawGame(const GameState *state, Texture2D spritesheet, Font font) {
 
     // Draw UI (shop panel, placement preview, etc.)
     DrawUI(state->ui, state, spritesheet, font);
+
+    if (state->show_flow_field) {
+        DrawFlowField(state->flow_field, &state->map);
+    }
 }
 
 void CleanupGame(GameState *state) {
-    // No dynamic memory to free (all static arrays)
+    if (state->flow_field) {
+        free(state->flow_field);
+        state->flow_field = NULL;
+    }
     printf("Game cleaned up.\n");
 }

@@ -45,6 +45,18 @@ typedef enum {
     BULLET_PLASMA
 } BulletType;
 
+typedef enum {
+    DIR_NONE = 0,
+    DIR_NORTH,
+    DIR_SOUTH,
+    DIR_EAST,
+    DIR_WEST,
+    DIR_NORTH_EAST,
+    DIR_NORTH_WEST,
+    DIR_SOUTH_EAST,
+    DIR_SOUTH_WEST
+} Direction;
+
 // Structs
 typedef struct {
     i32 tiles[MAP_HEIGHT][MAP_WIDTH];
@@ -70,6 +82,7 @@ typedef struct {
 typedef struct {
     EnemyType type;
     Vector2 position;
+    Vector2 flow_move_dir;
     f32 health, max_health;
     f32 base_speed;
     f32 speed_factor;
@@ -130,6 +143,8 @@ typedef struct {
     i32 base_life;
     i32 current_level;
     UIState *ui;  // Pointer to avoid circular dependency
+    Direction *flow_field;
+    bool show_flow_field;
 } GameState;
 
 // Game functions

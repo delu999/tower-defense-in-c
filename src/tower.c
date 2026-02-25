@@ -6,6 +6,7 @@
 #include "config.h"
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 // Get base sprite index for tower type (non-rotating platform)
 static i32 GetTowerBaseSpriteIndex(TowerType type) {
@@ -51,6 +52,17 @@ i32 PlaceTower(GameState *state, TowerType type, i32 grid_x, i32 grid_y) {
         return -1;
     }
 
+    // Prevent placing a tower on top of active enemies.
+    for (i32 i = 0; i < state->enemy_count; i++) {
+        if (!state->enemies[i].active) continue;
+        i32 enemy_grid_x, enemy_grid_y;
+        WorldToGrid(state->enemies[i].position, &enemy_grid_x, &enemy_grid_y);
+        if (enemy_grid_x == grid_x && enemy_grid_y == grid_y) {
+            printf("Cannot place tower: tile is occupied by an enemy\n");
+            return -1;
+        }
+    }
+
     // Temporarily mark tile as blocked for path validation
     TileType old_type = GetTileType(&state->map, grid_x, grid_y);
     SetTileType(&state->map, grid_x, grid_y, TILE_BLOCKED);
@@ -82,11 +94,12 @@ i32 PlaceTower(GameState *state, TowerType type, i32 grid_x, i32 grid_y) {
            (const char*[]){"Vulcan", "DCA", "Freeze", "Missile", "Plasma", "Wall"}[type],
            grid_x, grid_y, TOWER_STATS[type].cost);
 
-    // Recalculate paths for all enemies
-    for (i32 i = 0; i < state->enemy_count; i++) {
-        if (state->enemies[i].active) {
-            RecalculateEnemyPath(&state->enemies[i], &state->map);
-        }
+    Direction *new_flow_field = CreateFlowField(&state->map);
+    if (new_flow_field) {
+        free(state->flow_field);
+        state->flow_field = new_flow_field;
+    } else {
+        printf("Warning: failed to rebuild flow field after tower placement\n");
     }
 
     return index;
@@ -100,11 +113,12 @@ void RemoveTower(GameState *state, i32 index) {
     // Restore tile
     SetTileType(&state->map, tower->grid_x, tower->grid_y, TILE_BUILDABLE);
 
-    // Recalculate paths for all enemies
-    for (i32 i = 0; i < state->enemy_count; i++) {
-        if (state->enemies[i].active) {
-            RecalculateEnemyPath(&state->enemies[i], &state->map);
-        }
+    Direction *new_flow_field = CreateFlowField(&state->map);
+    if (new_flow_field) {
+        free(state->flow_field);
+        state->flow_field = new_flow_field;
+    } else {
+        printf("Warning: failed to rebuild flow field after tower removal\n");
     }
 
     // Swap with last (O(1) removal)

@@ -17,4 +17,11 @@ bool ValidatePaths(const Map *map);
 // Helper: visualize a path (for debugging)
 void DrawPath(const Vector2 *path, i32 path_len, Color color);
 
+// Helper: visualize the flow field (for debugging)
+void DrawFlowField(const Direction *flow_field, const Map *map);
+
+// Flow field: computes a direction for each cell pointing toward the nearest base
+// Returns a heap-allocated array of Direction (size map->width * map->height), caller must free
+Direction *CreateFlowField(const Map *map);
+
 #endif // PATHFINDING_H

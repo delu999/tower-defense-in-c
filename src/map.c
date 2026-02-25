@@ -336,6 +336,12 @@ bool LoadMapFromConf(Map *map, const char *filename) {
         }
     }
 
+    if (map->spawn_count <= 0 || map->base_count <= 0) {
+        printf("Invalid map in %s: requires at least 1 spawn and 1 base (got %d spawns, %d bases)\n",
+               filename, map->spawn_count, map->base_count);
+        return false;
+    }
+
     printf("Map loaded from .conf: %s (%s: %dx%d, %d spawns, %d bases)\n",
            filename, level_name, map->width, map->height, map->spawn_count, map->base_count);
     return true;

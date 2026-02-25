@@ -126,6 +126,18 @@ void StartNextWave(GameState *state) {
         return;
     }
 
+    if (state->map.spawn_count <= 0) {
+        printf("Cannot start wave: map has no spawn points\n");
+        mgr->countdown_timer = WAVE_COUNTDOWN_SECONDS;
+        return;
+    }
+
+    if (state->map.base_count <= 0) {
+        printf("Cannot start wave: map has no base points\n");
+        mgr->countdown_timer = WAVE_COUNTDOWN_SECONDS;
+        return;
+    }
+
     mgr->wave_active = true;
     mgr->enemies_spawned = 0;
     mgr->spawn_timer = 0;
@@ -181,6 +193,13 @@ void UpdateWaveManager(GameState *state, f32 dt) {
                         // Spawn this enemy type
                         EnemyType type = wave_entries[i].enemy_type;
                         f32 difficulty = wave_entries[i].difficulty;
+
+                        if (state->map.spawn_count <= 0) {
+                            printf("Cannot spawn enemy: map has no spawn points\n");
+                            mgr->wave_active = false;
+                            mgr->countdown_timer = WAVE_COUNTDOWN_SECONDS;
+                            break;
+                        }
 
                         // Random spawn point
                         i32 spawn_idx = rand() % state->map.spawn_count;

@@ -246,6 +246,10 @@ i32 FindPath(const Map *map, Vector2 start_grid, const Vector2 *goals, i32 goal_
 
 bool ValidatePaths(const Map *map) {
     // BFS from each spawn to check if any base is reachable
+    if (map->spawn_count <= 0 || map->base_count <= 0) {
+        printf("Validation failed: map requires at least 1 spawn and 1 base\n");
+        return false;
+    }
 
     for (i32 s = 0; s < map->spawn_count; s++) {
         i32 start_x = (i32)map->spawn_points[s].x;
@@ -321,4 +325,365 @@ void DrawPath(const Vector2 *path, i32 path_len, Color color) {
         Vector2 pos = GridToWorld((i32)path[i].x, (i32)path[i].y);
         DrawCircle((i32)pos.x, (i32)pos.y, 6, color);
     }
+}
+
+// FLOW FIELD
+
+static bool CanMoveDiagonalFlow(const u8 *cost_field, u32 width, u32 from, u32 to) {
+    u32 fx = from % width;
+    u32 fy = from / width;
+    u32 tx = to % width;
+    u32 ty = to / width;
+
+    i32 dx = (i32)tx - (i32)fx;
+    i32 dy = (i32)ty - (i32)fy;
+
+    if (abs(dx) != 1 || abs(dy) != 1) return true;
+
+    u32 orth1 = fy * width + (u32)((i32)fx + dx);
+    u32 orth2 = (u32)((i32)fy + dy) * width + fx;
+    return cost_field[orth1] != 255 && cost_field[orth2] != 255;
+}
+
+static u8 Get_Neighbors(const u8 *cost_field, u32 width, u32 height, u32 current, u32 *neighbors) {
+    u32 x = current % width;
+    u32 y = current / width;
+    u8 size = 0;
+
+    bool left  = x > 0;
+    bool right = x < width - 1;
+    bool up    = y > 0;
+    bool down  = y < height - 1;
+
+    // cardinal
+    if (left)  neighbors[size++] = y * width + (x - 1);
+    if (right) neighbors[size++] = y * width + (x + 1);
+    if (up)    neighbors[size++] = (y - 1) * width + x;
+    if (down)  neighbors[size++] = (y + 1) * width + x;
+
+    // diagonal (prevent corner-cutting through blocked orthogonal cells)
+    if (up && left) {
+        u32 n = (y - 1) * width + (x - 1);
+        if (CanMoveDiagonalFlow(cost_field, width, current, n)) neighbors[size++] = n;
+    }
+    if (up && right) {
+        u32 n = (y - 1) * width + (x + 1);
+        if (CanMoveDiagonalFlow(cost_field, width, current, n)) neighbors[size++] = n;
+    }
+    if (down && left) {
+        u32 n = (y + 1) * width + (x - 1);
+        if (CanMoveDiagonalFlow(cost_field, width, current, n)) neighbors[size++] = n;
+    }
+    if (down && right) {
+        u32 n = (y + 1) * width + (x + 1);
+        if (CanMoveDiagonalFlow(cost_field, width, current, n)) neighbors[size++] = n;
+    }
+
+    return size;
+}
+
+// Map a coordinate delta (dx, dy) to a Direction enum value
+static Direction DeltaToDir(i32 dx, i32 dy) {
+    if (dx ==  0 && dy == -1) return DIR_NORTH;
+    if (dx ==  0 && dy ==  1) return DIR_SOUTH;
+    if (dx ==  1 && dy ==  0) return DIR_EAST;
+    if (dx == -1 && dy ==  0) return DIR_WEST;
+    if (dx ==  1 && dy == -1) return DIR_NORTH_EAST;
+    if (dx == -1 && dy == -1) return DIR_NORTH_WEST;
+    if (dx ==  1 && dy ==  1) return DIR_SOUTH_EAST;
+    if (dx == -1 && dy ==  1) return DIR_SOUTH_WEST;
+    return DIR_NONE;
+}
+
+static bool IsValidDirection(Direction dir) {
+    return dir >= DIR_NONE && dir <= DIR_SOUTH_WEST;
+}
+
+// Lightweight min-heap for Dijkstra integration field
+typedef struct { u32 cost; u32 idx; } FlowNode;
+
+typedef struct {
+    FlowNode *data;
+    u32 count;
+    u32 capacity;
+} FlowPQ;
+
+static void FlowPQ_Init(FlowPQ *pq, u32 capacity) {
+    pq->data = malloc(capacity * sizeof(FlowNode));
+    pq->count = 0;
+    pq->capacity = capacity;
+}
+
+static void FlowPQ_Free(FlowPQ *pq) {
+    free(pq->data);
+}
+
+static void FlowPQ_Push(FlowPQ *pq, u32 cost, u32 idx) {
+    if (pq->count >= pq->capacity) return;
+    u32 i = pq->count++;
+    pq->data[i] = (FlowNode){cost, idx};
+    while (i > 0) {
+        u32 parent = (i - 1) / 2;
+        if (pq->data[i].cost >= pq->data[parent].cost) break;
+        FlowNode tmp = pq->data[i]; pq->data[i] = pq->data[parent]; pq->data[parent] = tmp;
+        i = parent;
+    }
+}
+
+static FlowNode FlowPQ_Pop(FlowPQ *pq) {
+    FlowNode result = pq->data[0];
+    pq->data[0] = pq->data[--pq->count];
+    u32 i = 0;
+    while (true) {
+        u32 l = 2*i+1, r = 2*i+2, s = i;
+        if (l < pq->count && pq->data[l].cost < pq->data[s].cost) s = l;
+        if (r < pq->count && pq->data[r].cost < pq->data[s].cost) s = r;
+        if (s == i) break;
+        FlowNode tmp = pq->data[i]; pq->data[i] = pq->data[s]; pq->data[s] = tmp;
+        i = s;
+    }
+    return result;
+}
+
+Direction *CreateFlowField(const Map *map) {
+    u32 grid_size = map->width * map->height;
+
+    // cost field
+    u8 *cost_field = malloc(grid_size * sizeof(u8));
+    if (!cost_field) {
+        printf("Failed to allocate memory for cost field\n");
+        return NULL;
+    }
+
+    for (i32 y = 0; y < map->height; y++) {
+        for (i32 x = 0; x < map->width; x++) {
+            u32 idx = (u32)y * (u32)map->width + (u32)x;
+            cost_field[idx] = map->cell_types[y][x] == TILE_BLOCKED ? 255 : 1;
+        }
+    }
+
+    for (i32 y = 0; y < map->height; y++) {
+        for (i32 x = 0; x < map->width; x++) {
+            u32 idx = (u32)y * (u32)map->width + (u32)x;
+            if (cost_field[idx] == 255) continue;
+
+            u32 neighbors[8];
+            u8 neighbors_size = Get_Neighbors(cost_field, (u32)map->width, (u32)map->height, idx, neighbors);
+            for (u8 i = 0; i < neighbors_size; i++) {
+                if (cost_field[neighbors[i]] == 255) {
+                    cost_field[idx] = 2; // penalty for being next to a wall
+                    break;
+                }
+            }
+        }
+    }
+
+    // integration field — Dijkstra from all bases
+    u32 *integration_field = malloc(grid_size * sizeof(u32));
+    if (!integration_field) {
+        printf("Failed to allocate memory for integration field\n");
+        free(cost_field);
+        return NULL;
+    }
+    for (u32 i = 0; i < grid_size; i++) integration_field[i] = UINT32_MAX;
+
+    // Each cell can be relaxed multiple times (lazy Dijkstra), worst case 8× per cell
+    // Helps with avoiding congestions on some routes
+    FlowPQ pq;
+    FlowPQ_Init(&pq, grid_size * 8);
+    if (!pq.data) {
+        printf("Failed to allocate memory for flow field priority queue\n");
+        free(cost_field);
+        free(integration_field);
+        return NULL;
+    }
+
+    for (u32 y = 0; y < (u32)map->height; y++) {
+        for (u32 x = 0; x < (u32)map->width; x++) {
+            u32 idx = y * (u32)map->width + x;
+            if (map->cell_types[y][x] == TILE_BASE) {
+                integration_field[idx] = 0;
+                FlowPQ_Push(&pq, 0, idx);
+            }
+        }
+    }
+
+    while (pq.count > 0) {
+        FlowNode cur = FlowPQ_Pop(&pq);
+
+        if (cur.cost > integration_field[cur.idx]) continue;
+
+        u32 cx = cur.idx % (u32)map->width;
+        u32 cy = cur.idx / (u32)map->width;
+
+        u32 neighbors[8];
+        u8 neighbors_size = Get_Neighbors(cost_field, (u32)map->width, (u32)map->height, cur.idx, neighbors);
+
+        for (u8 i = 0; i < neighbors_size; i++) {
+            u32 neighbor = neighbors[i];
+            if (cost_field[neighbor] == 255) continue;  // impassable
+
+            u32 nx = neighbor % (u32)map->width;
+            u32 ny = neighbor / (u32)map->width;
+            u32 move_cost = ((nx != cx) && (ny != cy)) ? 14 : 10;
+            u32 new_cost = integration_field[cur.idx] + (u32)cost_field[neighbor] * move_cost;
+
+            if (new_cost < integration_field[neighbor]) {
+                integration_field[neighbor] = new_cost;
+                FlowPQ_Push(&pq, new_cost, neighbor);
+            }
+        }
+    }
+
+    FlowPQ_Free(&pq);
+
+    // flow field — for each cell, point toward the neighbor with lowest integration cost
+    Direction *flow_field = malloc(grid_size * sizeof(Direction));
+    if (!flow_field) {
+        printf("Failed to allocate memory for flow field\n");
+        free(cost_field);
+        free(integration_field);
+        return NULL;
+    }
+    for (u32 i = 0; i < grid_size; i++) {
+        flow_field[i] = DIR_NONE;
+    }
+
+    for (u32 y = 0; y < (u32)map->height; y++) {
+        for (u32 x = 0; x < (u32)map->width; x++) {
+            u32 idx = y * (u32)map->width + x;
+
+            if (cost_field[idx] == 255) {
+                flow_field[idx] = DIR_NONE;
+                continue;
+            }
+
+            u32 neighbors[8];
+            u8 neighbors_size = Get_Neighbors(cost_field, (u32)map->width, (u32)map->height, idx, neighbors);
+
+            u32 best_cost = integration_field[idx];
+            Direction best_dir = DIR_NONE;
+            for (u8 i = 0; i < neighbors_size; i++) {
+                u32 neighbor = neighbors[i];
+                if (integration_field[neighbor] < best_cost) {
+                    best_cost = integration_field[neighbor];
+                    i32 nx = (i32)(neighbor % (u32)map->width);
+                    i32 ny = (i32)(neighbor / (u32)map->width);
+                    best_dir = DeltaToDir(nx - (i32)x, ny - (i32)y);
+                }
+            }
+            flow_field[idx] = best_dir;
+        }
+    }
+
+    free(cost_field);
+    free(integration_field);
+    return flow_field;
+}
+
+static const Vector2 dir_arrow_vec[9] = {
+    { 0,    0   },  // DIR_NONE
+    { 0,   -1   },  // DIR_NORTH
+    { 0,    1   },  // DIR_SOUTH
+    { 1,    0   },  // DIR_EAST
+    {-1,    0   },  // DIR_WEST
+    { 0.707f, -0.707f },  // DIR_NORTH_EAST
+    {-0.707f, -0.707f },  // DIR_NORTH_WEST
+    { 0.707f,  0.707f },  // DIR_SOUTH_EAST
+    {-0.707f,  0.707f },  // DIR_SOUTH_WEST
+};
+
+void DrawFlowField(const Direction *flow_field, const Map *map) {
+    if (!flow_field) return;
+
+    u32 grid_size = (u32)(map->width * map->height);
+
+    u16 *dist = malloc(grid_size * sizeof(u16));
+    if (!dist) return;
+
+    u16 max_dist = 0;
+    for (u32 y = 0; y < (u32)map->height; y++) {
+        for (u32 x = 0; x < (u32)map->width; x++) {
+            u32 idx = y * (u32)map->width + x;
+            u16 min_d = UINT16_MAX;
+            for (i32 b = 0; b < map->base_count; b++) {
+                u32 bx = (u32)map->base_points[b].x;
+                u32 by = (u32)map->base_points[b].y;
+                u32 dx = x > bx ? x - bx : bx - x;
+                u32 dy = y > by ? y - by : by - y;
+                u16 d = (u16)(dx > dy ? dx : dy);
+                if (d < min_d) min_d = d;
+            }
+            dist[idx] = min_d;
+            if (min_d != UINT16_MAX && min_d > max_dist) max_dist = min_d;
+        }
+    }
+
+    f32 arrow_len = TILE_SIZE * 0.38f;
+    f32 head_len  = TILE_SIZE * 0.13f;
+    f32 line_thick = 2.0f;
+
+    for (u32 y = 0; y < (u32)map->height; y++) {
+        for (u32 x = 0; x < (u32)map->width; x++) {
+            u32 idx = y * (u32)map->width + x;
+            Direction dir = flow_field[idx];
+            if (!IsValidDirection(dir)) {
+                dir = DIR_NONE;
+            }
+
+            Vector2 center = GridToWorld((i32)x, (i32)y);
+
+            f32 t = (max_dist > 0 && dist[idx] != UINT16_MAX)
+                    ? (f32)dist[idx] / (f32)max_dist
+                    : 1.0f;
+            Color cell_color = {
+                (u8)(t * 220),
+                (u8)((1.0f - t) * 220),
+                0,
+                180
+            };
+
+            if (dir == DIR_NONE) {
+                DrawRectangle(
+                    (i32)(center.x - TILE_SIZE / 2),
+                    (i32)(center.y - TILE_SIZE / 2),
+                    TILE_SIZE, TILE_SIZE,
+                    (Color){40, 40, 40, 100}
+                );
+                continue;
+            }
+
+            DrawRectangle(
+                (i32)(center.x - TILE_SIZE / 2),
+                (i32)(center.y - TILE_SIZE / 2),
+                TILE_SIZE, TILE_SIZE,
+                (Color){cell_color.r, cell_color.g, cell_color.b, 60}
+            );
+
+            Vector2 av = dir_arrow_vec[dir];
+            Vector2 tip = {
+                center.x + av.x * arrow_len,
+                center.y + av.y * arrow_len,
+            };
+            Vector2 tail = {
+                center.x - av.x * arrow_len * 0.5f,
+                center.y - av.y * arrow_len * 0.5f,
+            };
+            DrawLineEx(tail, tip, line_thick, cell_color);
+
+            Vector2 perp = {-av.y, av.x};
+            Vector2 head_l = {
+                tip.x - av.x * head_len + perp.x * head_len * 0.6f,
+                tip.y - av.y * head_len + perp.y * head_len * 0.6f,
+            };
+            Vector2 head_r = {
+                tip.x - av.x * head_len - perp.x * head_len * 0.6f,
+                tip.y - av.y * head_len - perp.y * head_len * 0.6f,
+            };
+            DrawLineEx(tip, head_l, line_thick, cell_color);
+            DrawLineEx(tip, head_r, line_thick, cell_color);
+        }
+    }
+
+    free(dist);
 }
