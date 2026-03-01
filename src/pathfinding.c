@@ -563,13 +563,26 @@ Direction *CreateFlowField(const Map *map) {
 
             u32 best_cost = integration_field[idx];
             Direction best_dir = DIR_NONE;
+            bool best_is_diagonal = false;
             for (u8 i = 0; i < neighbors_size; i++) {
                 u32 neighbor = neighbors[i];
-                if (integration_field[neighbor] < best_cost) {
-                    best_cost = integration_field[neighbor];
-                    i32 nx = (i32)(neighbor % (u32)map->width);
-                    i32 ny = (i32)(neighbor / (u32)map->width);
+                u32 neighbor_cost = integration_field[neighbor];
+                if (neighbor_cost == UINT32_MAX) continue;
+
+                i32 nx = (i32)(neighbor % (u32)map->width);
+                i32 ny = (i32)(neighbor / (u32)map->width);
+                bool candidate_is_diagonal = (nx != (i32)x) && (ny != (i32)y);
+
+                bool better_cost = neighbor_cost < best_cost;
+                bool tie_break_diagonal = (neighbor_cost == best_cost) &&
+                                          (best_dir != DIR_NONE) &&
+                                          candidate_is_diagonal &&
+                                          !best_is_diagonal;
+
+                if (better_cost || tie_break_diagonal) {
+                    best_cost = neighbor_cost;
                     best_dir = DeltaToDir(nx - (i32)x, ny - (i32)y);
+                    best_is_diagonal = candidate_is_diagonal;
                 }
             }
             flow_field[idx] = best_dir;

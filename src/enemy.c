@@ -42,17 +42,28 @@ static bool IsNearTileCenter(Vector2 pos, i32 grid_x, i32 grid_y) {
     return fabsf(pos.x - center.x) <= half_box && fabsf(pos.y - center.y) <= half_box;
 }
 
+static bool CanMoveDiagonalStep(const Map *map, i32 from_x, i32 from_y, i32 to_x, i32 to_y) {
+    i32 dx = to_x - from_x;
+    i32 dy = to_y - from_y;
+
+    if (dx == 0 || dy == 0) return true;
+
+    return IsWalkable(map, from_x + dx, from_y) &&
+           IsWalkable(map, from_x, from_y + dy);
+}
+
 static bool MoveFallbackToWalkableNeighbor(Enemy *enemy, const Map *map, f32 speed, f32 dt) {
     i32 grid_x, grid_y;
     WorldToGrid(enemy->position, &grid_x, &grid_y);
 
-    const i32 dx[] = {0, 0, 1, -1};
-    const i32 dy[] = {-1, 1, 0, 0};
+    const i32 dx[] = {0, 0, 1, -1, 1, -1, 1, -1};
+    const i32 dy[] = {-1, 1, 0, 0, -1, -1, 1, 1};
 
-    for (i32 k = 0; k < 4; k++) {
+    for (i32 k = 0; k < 8; k++) {
         i32 nx = grid_x + dx[k];
         i32 ny = grid_y + dy[k];
         if (!IsWalkable(map, nx, ny)) continue;
+        if (!CanMoveDiagonalStep(map, grid_x, grid_y, nx, ny)) continue;
 
         Vector2 target = GridToWorld(nx, ny);
         Vector2 move = {
