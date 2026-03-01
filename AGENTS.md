@@ -30,7 +30,7 @@ make DEBUG=1
 ## Project Structure
 
 ```
-src/
+game/
   main.c           - Entry point, game loop, screen management
   game.h/c         - Core game state and update logic
   map.h/c          - Tilemap rendering and tile queries
@@ -43,15 +43,17 @@ src/
   config.h         - Constants and balance values
   base_defs.h      - Primitive type aliases (i32, f32, etc.)
 
-tools/editor/
+level_editor/
   main.c           - Editor entry point
   editor.h/c       - Level editor implementation
+
+levels/            - Custom level files
+enemies/           - Enemy assets/data (currently empty)
+turrets/           - Turret assets/data (currently empty)
 
 assets/
   sprites/         - Game sprites (Kenney tower defense tileset)
   fonts/           - Poppins font
-
-levels/            - Custom level JSON files
 ```
 
 ## Testing

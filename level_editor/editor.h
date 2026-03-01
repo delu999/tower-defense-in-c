@@ -1,8 +1,8 @@
 #ifndef EDITOR_H
 #define EDITOR_H
 
-#include "../../src/game.h"
-#include "../../src/config.h"
+#include "game.h"
+#include "config.h"
 #include "raylib.h"
 #include <stdbool.h>
 
