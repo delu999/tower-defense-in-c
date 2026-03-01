@@ -17,6 +17,34 @@ static void DrawSpriteAtGrid(Texture2D spritesheet, i32 sprite_id, i32 grid_x, i
     DrawTexturePro(spritesheet, src, dest, (Vector2){0, 0}, 0, WHITE);
 }
 
+static void DrawSpawnMarker(i32 grid_x, i32 grid_y) {
+    f32 px = MAP_OFFSET_X + grid_x * TILE_SIZE;
+    f32 py = MAP_OFFSET_Y + grid_y * TILE_SIZE;
+    Rectangle cell = {px, py, TILE_SIZE, TILE_SIZE};
+    Vector2 center = GridToWorld(grid_x, grid_y);
+    f32 r = TILE_SIZE * 0.18f;
+    f32 pad = TILE_SIZE * 0.08f;
+
+    DrawRectangleRec(cell, ColorAlpha(SKYBLUE, 0.28f));
+    DrawRectangleLinesEx((Rectangle){px + pad, py + pad, TILE_SIZE - pad * 2.0f, TILE_SIZE - pad * 2.0f}, 2.0f, BLUE);
+    DrawCircleV(center, r, BLUE);
+    DrawCircleLines((i32)center.x, (i32)center.y, r, WHITE);
+}
+
+static void DrawBaseMarker(i32 grid_x, i32 grid_y) {
+    f32 px = MAP_OFFSET_X + grid_x * TILE_SIZE;
+    f32 py = MAP_OFFSET_Y + grid_y * TILE_SIZE;
+    Rectangle cell = {px, py, TILE_SIZE, TILE_SIZE};
+    Vector2 center = GridToWorld(grid_x, grid_y);
+    f32 half = TILE_SIZE * 0.18f;
+    f32 pad = TILE_SIZE * 0.08f;
+
+    DrawRectangleRec(cell, ColorAlpha(RED, 0.26f));
+    DrawRectangleLinesEx((Rectangle){px + pad, py + pad, TILE_SIZE - pad * 2.0f, TILE_SIZE - pad * 2.0f}, 2.0f, RED);
+    DrawRectangleV((Vector2){center.x - half, center.y - half}, (Vector2){half * 2.0f, half * 2.0f}, GOLD);
+    DrawRectangleLines((i32)(center.x - half), (i32)(center.y - half), (i32)(half * 2.0f), (i32)(half * 2.0f), WHITE);
+}
+
 // Level 1 layout: Open field with borders (free-pathing maze TD)
 static void InitLevel1(Map *map) {
     map->width = 18;
@@ -223,6 +251,18 @@ void DrawMap(const Map *map, Texture2D spritesheet) {
     for (i32 y = 0; y < map->height; y++) {
         for (i32 x = 0; x < map->width; x++) {
             DrawSpriteAtGrid(spritesheet, map->tiles[y][x], x, y);
+        }
+    }
+
+    // Highlight spawn and base cells so they remain easy to identify on every level.
+    for (i32 y = 0; y < map->height; y++) {
+        for (i32 x = 0; x < map->width; x++) {
+            TileType t = map->cell_types[y][x];
+            if (t == TILE_SPAWN) {
+                DrawSpawnMarker(x, y);
+            } else if (t == TILE_BASE) {
+                DrawBaseMarker(x, y);
+            }
         }
     }
 }
