@@ -65,7 +65,9 @@ make rebuild
 - **Right Click / ESC**: Cancel tower placement
 - **Click Tower**: Select existing tower to view range
 - **DELETE / BACKSPACE**: Remove selected tower
-- **SPACE**: Start next wave early
+- **Start Wave button / SPACE**: Start next wave early
+- **Pause button / P**: Pause or resume gameplay
+- **Menu button / M**: Return to main menu during gameplay
 - **Mouse Hover**: See placement preview with range circle
 
 ### Game Over / Victory

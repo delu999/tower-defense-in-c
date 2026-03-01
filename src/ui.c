@@ -1,6 +1,7 @@
 #include "ui.h"
 #include "tower.h"
 #include "map.h"
+#include "wave.h"
 #include "config.h"
 #include <string.h>
 #include <stdio.h>
@@ -35,6 +36,10 @@ static bool IsMouseInMap(Vector2 mouse_pos) {
 #define SHOP_HEADER_H 50
 #define SHOP_ICON_SIZE 64
 
+#define CTRL_BTN_W 92
+#define CTRL_BTN_H 28
+#define CTRL_BTN_GAP 8
+
 static Rectangle GetShopButton(i32 index) {
     i32 col = index % SHOP_COLS;
     i32 row = index / SHOP_COLS;
@@ -49,7 +54,67 @@ static Rectangle GetShopButton(i32 index) {
     };
 }
 
+static Rectangle GetStartWaveButtonRect(void) {
+    return (Rectangle){
+        SHOP_X + 8,
+        (HUD_HEIGHT - CTRL_BTN_H) / 2.0f,
+        CTRL_BTN_W,
+        CTRL_BTN_H
+    };
+}
+
+static Rectangle GetPauseButtonRect(void) {
+    return (Rectangle){
+        SHOP_X + 8 + CTRL_BTN_W + CTRL_BTN_GAP,
+        (HUD_HEIGHT - CTRL_BTN_H) / 2.0f,
+        CTRL_BTN_W,
+        CTRL_BTN_H
+    };
+}
+
+static Rectangle GetMenuButtonRect(void) {
+    return (Rectangle){
+        SHOP_X + 8 + (CTRL_BTN_W + CTRL_BTN_GAP) * 2,
+        (HUD_HEIGHT - CTRL_BTN_H) / 2.0f,
+        CTRL_BTN_W,
+        CTRL_BTN_H
+    };
+}
+
+static bool CanStartWave(const GameState *game) {
+    return !game->paused &&
+           !game->wave_mgr.wave_active &&
+           game->wave_mgr.current_wave < game->wave_mgr.total_waves;
+}
+
+static void DrawControlButton(Font font, Rectangle rect, const char *label, bool enabled, bool active) {
+    Color bg = enabled ? (Color){75, 75, 75, 255} : (Color){50, 50, 50, 255};
+    Color border = active ? YELLOW : (enabled ? LIGHTGRAY : GRAY);
+    Color text = enabled ? WHITE : GRAY;
+
+    DrawRectangleRec(rect, bg);
+    DrawRectangleLinesEx(rect, 2, border);
+
+    Vector2 text_size = MeasureTextEx(font, label, 16, 1);
+    DrawTextEx(font, label,
+               (Vector2){rect.x + (rect.width - text_size.x) / 2, rect.y + (rect.height - text_size.y) / 2},
+               16, 1, text);
+}
+
 void UpdateUI(UIState *ui, GameState *game, f32 dt) {
+    if (IsKeyPressed(KEY_P)) {
+        game->paused = !game->paused;
+    }
+
+    if (IsKeyPressed(KEY_M)) {
+        game->paused = false;
+        game->screen = SCREEN_MENU;
+        ui->placing_tower = false;
+        ui->selected_tower = -1;
+        ui->selected_tower_index = -1;
+        return;
+    }
+
     if (ui->alert_timer > 0) {
         ui->alert_timer -= dt;
     }
@@ -60,6 +125,35 @@ void UpdateUI(UIState *ui, GameState *game, f32 dt) {
 
     // Handle shop button clicks
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        Rectangle start_btn = GetStartWaveButtonRect();
+        Rectangle pause_btn = GetPauseButtonRect();
+        Rectangle menu_btn = GetMenuButtonRect();
+
+        if (CheckCollisionPointRec(mouse_pos, start_btn)) {
+            if (CanStartWave(game)) {
+                StartNextWave(game);
+            }
+            return;
+        }
+
+        if (CheckCollisionPointRec(mouse_pos, pause_btn)) {
+            game->paused = !game->paused;
+            return;
+        }
+
+        if (CheckCollisionPointRec(mouse_pos, menu_btn)) {
+            game->paused = false;
+            game->screen = SCREEN_MENU;
+            ui->placing_tower = false;
+            ui->selected_tower = -1;
+            ui->selected_tower_index = -1;
+            return;
+        }
+
+        if (game->paused) {
+            return;
+        }
+
         for (i32 i = 0; i < SHOP_TOWER_COUNT; i++) {
             Rectangle btn = GetShopButton(i);
             if (CheckCollisionPointRec(mouse_pos, btn)) {
@@ -75,6 +169,10 @@ void UpdateUI(UIState *ui, GameState *game, f32 dt) {
                 return;
             }
         }
+    }
+
+    if (game->paused) {
+        return;
     }
 
     // Handle tower placement (only in map area)
@@ -202,6 +300,11 @@ void DrawUI(const UIState *ui, const GameState *game, Texture2D spritesheet, Fon
     DrawTextEx(font, shop_title,
               (Vector2){SHOP_X + (SHOP_WIDTH - title_size.x) / 2, MAP_OFFSET_Y + 10},
               32, 1, WHITE);
+
+    // Top-right gameplay controls
+    DrawControlButton(font, GetStartWaveButtonRect(), "Start Wave", CanStartWave(game), false);
+    DrawControlButton(font, GetPauseButtonRect(), game->paused ? "Resume" : "Pause", true, game->paused);
+    DrawControlButton(font, GetMenuButtonRect(), "Menu", true, false);
 
     // Tower buttons (2x3 grid)
     i32 base_sprites[] = {

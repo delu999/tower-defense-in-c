@@ -219,6 +219,10 @@ i32 main(void) {
             case SCREEN_PLAYING:
                 UpdateGame(&state, dt);
 
+                if (state.screen != SCREEN_PLAYING) {
+                    break;
+                }
+
                 // Check win/lose conditions
                 if (state.base_life <= 0) {
                     state.screen = SCREEN_GAME_OVER;

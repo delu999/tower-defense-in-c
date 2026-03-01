@@ -145,6 +145,7 @@ typedef struct {
     UIState *ui;  // Pointer to avoid circular dependency
     Direction *flow_field;
     bool show_flow_field;
+    bool paused;
 } GameState;
 
 // Game functions

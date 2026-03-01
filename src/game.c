@@ -20,6 +20,7 @@ void InitGame(GameState *state, i32 level) {
     state->currency = STARTING_CURRENCY;
     state->base_life = STARTING_BASE_LIFE;
     state->current_level = level;
+    state->paused = false;
 
     if (state->flow_field) {
         free(state->flow_field);
@@ -50,6 +51,7 @@ void InitGame(GameState *state, i32 level) {
 
     // Initialize wave manager
     InitWaveManager(&state->wave_mgr, level);
+    InitUI(state->ui);
 
     printf("Game initialized!\n");
 }
@@ -57,6 +59,18 @@ void InitGame(GameState *state, i32 level) {
 void UpdateGame(GameState *state, f32 dt) {
     // Update UI (handles mouse input)
     UpdateUI(state->ui, state, dt);
+
+    if (state->screen != SCREEN_PLAYING) {
+        return;
+    }
+
+    if (IsKeyPressed(KEY_F)) {
+        state->show_flow_field = !state->show_flow_field;
+    }
+
+    if (state->paused) {
+        return;
+    }
 
     // Update wave manager
     UpdateWaveManager(state, dt);
@@ -69,10 +83,6 @@ void UpdateGame(GameState *state, f32 dt) {
 
     // Update enemies
     UpdateEnemies(state, dt);
-
-    if (IsKeyPressed(KEY_F)) {
-        state->show_flow_field = !state->show_flow_field;
-    }
 }
 
 void DrawGame(const GameState *state, Texture2D spritesheet, Font font) {
@@ -105,7 +115,7 @@ void DrawGame(const GameState *state, Texture2D spritesheet, Font font) {
 
     // Level
     snprintf(buf, sizeof(buf), "Level %d", state->current_level + 1);
-    DrawTextEx(font, buf, (Vector2){680, 8}, 24, 1, SKYBLUE);
+    DrawTextEx(font, buf, (Vector2){700, 8}, 24, 1, SKYBLUE);
 
     // Draw the map
     DrawMap(&state->map, spritesheet);
@@ -121,6 +131,12 @@ void DrawGame(const GameState *state, Texture2D spritesheet, Font font) {
 
     // Draw UI (shop panel, placement preview, etc.)
     DrawUI(state->ui, state, spritesheet, font);
+
+    if (state->paused) {
+        DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, ColorAlpha(BLACK, 0.35f));
+        DrawTextEx(font, "PAUSED", (Vector2){SCREEN_WIDTH / 2 - 80, SCREEN_HEIGHT / 2 - 30}, 48, 2, WHITE);
+        DrawTextEx(font, "Press P or click Resume", (Vector2){SCREEN_WIDTH / 2 - 145, SCREEN_HEIGHT / 2 + 20}, 22, 1, LIGHTGRAY);
+    }
 
     if (state->show_flow_field) {
         DrawFlowField(state->flow_field, &state->map);
