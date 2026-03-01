@@ -2,6 +2,7 @@
 #include "tower.h"
 #include "map.h"
 #include "wave.h"
+#include "content.h"
 #include "config.h"
 #include <string.h>
 #include <stdio.h>
@@ -157,7 +158,7 @@ void UpdateUI(UIState *ui, GameState *game, f32 dt) {
         for (i32 i = 0; i < SHOP_TOWER_COUNT; i++) {
             Rectangle btn = GetShopButton(i);
             if (CheckCollisionPointRec(mouse_pos, btn)) {
-                i32 tower_type = SHOP_TOWER_ORDER[i];
+                i32 tower_type = game->shop_tower_order[i];
                 if (ui->selected_tower == tower_type) {
                     ui->selected_tower = -1;
                     ui->placing_tower = false;
@@ -180,7 +181,7 @@ void UpdateUI(UIState *ui, GameState *game, f32 dt) {
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && IsMouseInMap(mouse_pos)) {
             i32 result = PlaceTower(game, (TowerType)ui->selected_tower, mouse_grid_x, mouse_grid_y);
             if (result < 0) {
-                if (game->currency < TOWER_STATS[ui->selected_tower].cost) {
+                if (game->currency < game->tower_config[ui->selected_tower].stats.cost) {
                     ShowAlert(ui, "Not enough currency!");
                 } else {
                     ShowAlert(ui, "Can't place tower here!");
@@ -244,24 +245,14 @@ void DrawUI(const UIState *ui, const GameState *game, Texture2D spritesheet, Fon
             bool can_place = IsBuildable(&game->map, mouse_grid_x, mouse_grid_y);
 
             // Range circle
-            f32 range = TOWER_STATS[ui->selected_tower].range * TILE_SIZE;
+            f32 range = game->tower_config[ui->selected_tower].stats.range * TILE_SIZE;
             Color range_color = can_place ? ColorAlpha(GREEN, 0.2f) : ColorAlpha(RED, 0.2f);
             DrawCircle((i32)world_pos.x, (i32)world_pos.y, range, range_color);
             DrawCircleLines((i32)world_pos.x, (i32)world_pos.y, range,
                            can_place ? GREEN : RED);
 
             // Tower base preview
-            i32 base_sprites[] = {
-                SPRITE_TOWER_BASE_VULCAN, SPRITE_TOWER_BASE_DCA,
-                SPRITE_TOWER_BASE_FREEZE, SPRITE_TOWER_BASE_MISSILE,
-                SPRITE_TOWER_BASE_PLASMA, SPRITE_TOWER_BASE_WALL
-            };
-            i32 gun_sprites[] = {
-                SPRITE_TOWER_GUN_VULCAN, SPRITE_TOWER_GUN_DCA,
-                SPRITE_TOWER_GUN_FREEZE, SPRITE_TOWER_GUN_MISSILE,
-                SPRITE_TOWER_GUN_PLASMA, -1
-            };
-            i32 base_id = base_sprites[ui->selected_tower];
+            i32 base_id = game->tower_config[ui->selected_tower].base_sprite_id;
             Rectangle dest = {
                 world_pos.x - TILE_SIZE / 2,
                 world_pos.y - TILE_SIZE / 2,
@@ -272,8 +263,9 @@ void DrawUI(const UIState *ui, const GameState *game, Texture2D spritesheet, Fon
             DrawSpriteRect(spritesheet, base_id, dest);
 
             // Draw gun sprite on top (if applicable)
-            if (gun_sprites[ui->selected_tower] >= 0) {
-                DrawSpriteRect(spritesheet, gun_sprites[ui->selected_tower], dest);
+            i32 gun_id = game->tower_config[ui->selected_tower].gun_sprite_id;
+            if (gun_id >= 0) {
+                DrawSpriteRect(spritesheet, gun_id, dest);
             }
         }
     }
@@ -282,7 +274,7 @@ void DrawUI(const UIState *ui, const GameState *game, Texture2D spritesheet, Fon
     if (ui->selected_tower_index >= 0 && ui->selected_tower_index < game->tower_count) {
         const Tower *tower = &game->towers[ui->selected_tower_index];
         if (tower->active) {
-            f32 range = TOWER_STATS[tower->type].range * TILE_SIZE;
+            f32 range = game->tower_config[tower->type].stats.range * TILE_SIZE;
             DrawCircle((i32)tower->position.x, (i32)tower->position.y, range,
                       ColorAlpha(BLUE, 0.2f));
             DrawCircleLines((i32)tower->position.x, (i32)tower->position.y, range, BLUE);
@@ -307,22 +299,11 @@ void DrawUI(const UIState *ui, const GameState *game, Texture2D spritesheet, Fon
     DrawControlButton(font, GetMenuButtonRect(), "Menu", true, false);
 
     // Tower buttons (2x3 grid)
-    i32 base_sprites[] = {
-        SPRITE_TOWER_BASE_VULCAN, SPRITE_TOWER_BASE_DCA,
-        SPRITE_TOWER_BASE_FREEZE, SPRITE_TOWER_BASE_MISSILE,
-        SPRITE_TOWER_BASE_PLASMA, SPRITE_TOWER_BASE_WALL
-    };
-    i32 gun_sprites[] = {
-        SPRITE_TOWER_GUN_VULCAN, SPRITE_TOWER_GUN_DCA,
-        SPRITE_TOWER_GUN_FREEZE, SPRITE_TOWER_GUN_MISSILE,
-        SPRITE_TOWER_GUN_PLASMA, -1
-    };
-
     for (i32 i = 0; i < SHOP_TOWER_COUNT; i++) {
-        i32 tower_type = SHOP_TOWER_ORDER[i];
+        i32 tower_type = game->shop_tower_order[i];
         Rectangle btn = GetShopButton(i);
         bool selected = (ui->selected_tower == tower_type);
-        bool affordable = game->currency >= TOWER_STATS[tower_type].cost;
+        bool affordable = game->currency >= game->tower_config[tower_type].stats.cost;
 
         // Button background
         Color bg = selected ? (Color){60, 120, 180, 255} : (Color){100, 100, 100, 255};
@@ -337,21 +318,22 @@ void DrawUI(const UIState *ui, const GameState *game, Texture2D spritesheet, Fon
         Rectangle icon_dest = {icon_x, icon_y, SHOP_ICON_SIZE, SHOP_ICON_SIZE};
 
         // Draw base sprite
-        DrawSpriteRect(spritesheet, base_sprites[tower_type], icon_dest);
+        DrawSpriteRect(spritesheet, game->tower_config[tower_type].base_sprite_id, icon_dest);
         // Draw gun sprite on top (if applicable)
-        if (gun_sprites[tower_type] >= 0) {
-            DrawSpriteRect(spritesheet, gun_sprites[tower_type], icon_dest);
+        if (game->tower_config[tower_type].gun_sprite_id >= 0) {
+            DrawSpriteRect(spritesheet, game->tower_config[tower_type].gun_sprite_id, icon_dest);
         }
 
         // Tower name
-        Vector2 name_size = MeasureTextEx(font, SHOP_TOWER_NAMES[i], 18, 1);
-        DrawTextEx(font, SHOP_TOWER_NAMES[i],
+        const char *tower_name = GetTowerName(game, (TowerType)tower_type);
+        Vector2 name_size = MeasureTextEx(font, tower_name, 18, 1);
+        DrawTextEx(font, tower_name,
                   (Vector2){btn.x + (btn.width - name_size.x) / 2, btn.y + SHOP_BTN_SIZE + 2},
                   18, 1, WHITE);
 
         // Cost
         char cost_str[16];
-        snprintf(cost_str, sizeof(cost_str), "$ %d", TOWER_STATS[tower_type].cost);
+        snprintf(cost_str, sizeof(cost_str), "$ %d", game->tower_config[tower_type].stats.cost);
         Vector2 cost_size = MeasureTextEx(font, cost_str, 18, 1);
         Color cost_color = affordable ? GREEN : RED;
         DrawTextEx(font, cost_str,
@@ -372,9 +354,8 @@ void DrawUI(const UIState *ui, const GameState *game, Texture2D spritesheet, Fon
     if (ui->selected_tower_index >= 0 && ui->selected_tower_index < game->tower_count) {
         const Tower *tower = &game->towers[ui->selected_tower_index];
         if (tower->active) {
-            const char *tower_names[] = {"Vulcan", "DCA", "Freeze", "Missile", "Plasma", "Wall"};
             char buf[128];
-            snprintf(buf, sizeof(buf), "%s Tower", tower_names[tower->type]);
+            snprintf(buf, sizeof(buf), "%s Tower", GetTowerName(game, tower->type));
             Vector2 info_size = MeasureTextEx(font, buf, 20, 1);
             DrawTextEx(font, buf,
                       (Vector2){SHOP_X + (SHOP_WIDTH - info_size.x) / 2, SCREEN_HEIGHT - 80},

@@ -6,7 +6,6 @@
 #include <stdbool.h>
 
 // Map functions
-void InitMap(Map *map, i32 level);
 bool LoadMapFromConf(Map *map, const char *filename);
 void DrawMap(const Map *map, Texture2D spritesheet);
 bool IsBuildable(const Map *map, i32 grid_x, i32 grid_y);

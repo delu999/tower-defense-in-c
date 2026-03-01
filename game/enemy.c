@@ -1,20 +1,16 @@
 #include "enemy.h"
 #include "map.h"
+#include "content.h"
 #include "config.h"
 #include <stdio.h>
 #include <math.h>
 
 // Get sprite index for enemy type
-static i32 GetEnemySpriteIndex(EnemyType type) {
-    switch (type) {
-        case ENEMY_SIMPLE:   return SPRITE_ENEMY_SIMPLE;
-        case ENEMY_FAST:     return SPRITE_ENEMY_FAST;
-        case ENEMY_HEAVY:    return SPRITE_ENEMY_HEAVY;
-        case ENEMY_SHIELDED: return SPRITE_ENEMY_SHIELDED;
-        case ENEMY_FLYING:   return SPRITE_ENEMY_FLYING;
-        case ENEMY_BOSS:     return SPRITE_ENEMY_BOSS;
-        default:             return SPRITE_ENEMY_SIMPLE;
+static i32 GetEnemySpriteIndex(const GameState *state, EnemyType type) {
+    if (type < ENEMY_SIMPLE || type > ENEMY_BOSS) {
+        return -1;
     }
+    return state->enemy_config[type].sprite_id;
 }
 
 static Vector2 DirToVec(Direction dir) {
@@ -99,12 +95,12 @@ i32 SpawnEnemy(GameState *state, EnemyType type, Vector2 spawn_pos, f32 difficul
 
     // Initialize enemy
     enemy->type = type;
-    enemy->base_speed = ENEMY_STATS[type].speed * TILE_SIZE;  // Convert to pixels/sec
+    enemy->base_speed = state->enemy_config[type].stats.speed * TILE_SIZE;  // Convert to pixels/sec
     enemy->speed_factor = 1.0f;
-    enemy->max_health = ENEMY_STATS[type].health * difficulty;
+    enemy->max_health = state->enemy_config[type].stats.health * difficulty;
     enemy->health = enemy->max_health;
-    enemy->reward = ENEMY_STATS[type].reward;
-    enemy->damage_to_base = ENEMY_STATS[type].damage_to_base;
+    enemy->reward = state->enemy_config[type].stats.reward;
+    enemy->damage_to_base = state->enemy_config[type].stats.damage_to_base;
     enemy->difficulty = difficulty;
     enemy->freeze_timer = 0;
     enemy->shield_hp = 0;
@@ -251,7 +247,7 @@ void DrawEnemies(const GameState *state, Texture2D spritesheet) {
         const Enemy *enemy = &state->enemies[i];
         if (!enemy->active) continue;
 
-        i32 sprite_id = GetEnemySpriteIndex(enemy->type);
+        i32 sprite_id = GetEnemySpriteIndex(state, enemy->type);
 
         // Calculate source rectangle (128x128 tiles, 23 columns)
         i32 src_x = (sprite_id % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
@@ -267,17 +263,19 @@ void DrawEnemies(const GameState *state, Texture2D spritesheet) {
         };
 
         // Draw shadow/wings for flying enemies
-        if (enemy->type == ENEMY_FLYING) {
-            i32 shadow_sx = (SPRITE_ENEMY_FLYING_SHADOW % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
-            i32 shadow_sy = (SPRITE_ENEMY_FLYING_SHADOW / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+        if (enemy->type == ENEMY_FLYING && state->enemy_config[enemy->type].overlay_sprite_id >= 0) {
+            i32 shadow_sprite = state->enemy_config[enemy->type].overlay_sprite_id;
+            i32 shadow_sx = (shadow_sprite % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+            i32 shadow_sy = (shadow_sprite / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
             Rectangle shadow_src = {shadow_sx, shadow_sy, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
             DrawTexturePro(spritesheet, shadow_src, dest, (Vector2){0, 0}, 0, WHITE);
         }
 
         // Draw shell layer for boss enemies
-        if (enemy->type == ENEMY_BOSS) {
-            i32 shell_sx = (SPRITE_ENEMY_BOSS_SHELL % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
-            i32 shell_sy = (SPRITE_ENEMY_BOSS_SHELL / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+        if (enemy->type == ENEMY_BOSS && state->enemy_config[enemy->type].overlay_sprite_id >= 0) {
+            i32 shell_sprite = state->enemy_config[enemy->type].overlay_sprite_id;
+            i32 shell_sx = (shell_sprite % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+            i32 shell_sy = (shell_sprite / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
             Rectangle shell_src = {shell_sx, shell_sy, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
             DrawTexturePro(spritesheet, shell_src, dest, (Vector2){0, 0}, 0, WHITE);
         }

@@ -5,6 +5,10 @@
 #include "config.h"
 #include <stdbool.h>
 
+#define CONFIG_NAME_LEN 32
+#define LEVEL_NAME_LEN 64
+#define CONFIG_PATH_LEN 256
+
 // Enums
 typedef enum {
     SCREEN_MENU,
@@ -116,6 +120,20 @@ typedef struct {
 } WaveEntry;
 
 typedef struct {
+    char name[CONFIG_NAME_LEN];
+    EnemyStats stats;
+    i32 sprite_id;
+    i32 overlay_sprite_id;
+} EnemyConfigEntry;
+
+typedef struct {
+    char name[CONFIG_NAME_LEN];
+    TowerStats stats;
+    i32 base_sprite_id;
+    i32 gun_sprite_id;
+} TowerConfigEntry;
+
+typedef struct {
     WaveEntry *waves;
     i32 *wave_sizes;
     i32 total_waves;
@@ -146,6 +164,17 @@ typedef struct {
     Direction *flow_field;
     bool show_flow_field;
     bool paused;
+    char level_name[LEVEL_NAME_LEN];
+    char level_filename[CONFIG_PATH_LEN];
+    char enemy_config_file[CONFIG_PATH_LEN];
+    char turret_config_file[CONFIG_PATH_LEN];
+    EnemyConfigEntry enemy_config[ENEMY_TYPE_COUNT];
+    TowerConfigEntry tower_config[TOWER_TYPE_COUNT];
+    i32 shop_tower_order[SHOP_TOWER_COUNT];
+    i32 level_wave_sizes[MAX_LEVEL_WAVES];
+    WaveEntry level_wave_entries[MAX_LEVEL_WAVE_ENTRIES];
+    i32 level_total_waves;
+    i32 level_wave_entry_count;
 } GameState;
 
 // Game functions

@@ -1,6 +1,7 @@
 # Build artifacts
 build/
 tower-defense
+game-editor
 level-editor
 
 # IDE

@@ -11,10 +11,10 @@ make
 # Build and run the game
 make run
 
-# Build the level editor
+# Build the game editor
 make editor
 
-# Run the level editor
+# Run the game editor
 make run-editor
 
 # Clean build artifacts
@@ -43,13 +43,13 @@ game/
   config.h         - Constants and balance values
   base_defs.h      - Primitive type aliases (i32, f32, etc.)
 
-level_editor/
+game_editor/
   main.c           - Editor entry point
-  editor.h/c       - Level editor implementation
+  editor.h/c       - Game editor implementation (levels, enemies, turrets)
 
 levels/            - Custom level files
-enemies/           - Enemy assets/data (currently empty)
-turrets/           - Turret assets/data (currently empty)
+enemies/           - Enemy configuration files
+turrets/           - Turret configuration files
 
 assets/
   sprites/         - Game sprites (Kenney tower defense tileset)

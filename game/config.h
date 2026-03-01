@@ -2,6 +2,7 @@
 #define CONFIG_H
 
 #include "base_defs.h"
+#include "raylib.h"
 
 // Window settings
 #define SCREEN_WIDTH 1280
@@ -14,10 +15,14 @@
 #define MAX_ENEMIES 512
 #define MAX_BULLETS 1024
 #define MAX_PATH_LEN 256
+#define TOWER_TYPE_COUNT 6
+#define ENEMY_TYPE_COUNT 6
 
 // Map dimensions (max, actual per-level may be smaller)
 #define MAP_WIDTH 20
 #define MAP_HEIGHT 12
+#define MAX_LEVEL_WAVES 32
+#define MAX_LEVEL_WAVE_ENTRIES 256
 
 // Map rendering offset (for HUD at top)
 #define MAP_OFFSET_X 0
@@ -41,7 +46,7 @@
 #define WAVE_COUNTDOWN_SECONDS 20.0f
 #define ENEMY_SPAWN_DELAY 0.05f
 
-// Tower stats (matching Unity Level 1 values)
+// Data-driven stat types (loaded from turrets/*.conf and enemies/*.conf)
 typedef struct {
     i32 damage;
     f32 fire_rate;      // shots per second
@@ -49,31 +54,12 @@ typedef struct {
     i32 cost;
 } TowerStats;
 
-static const TowerStats TOWER_STATS[] = {
-    [0] = { .damage = 10,  .fire_rate = 1.0f, .range = 2.0f, .cost = 5  },  // Vulcan
-    [1] = { .damage = 20,  .fire_rate = 1.0f, .range = 2.0f, .cost = 25 },  // DCA
-    [2] = { .damage = 0,   .fire_rate = 0.5f, .range = 1.5f, .cost = 30 },  // Freeze
-    [3] = { .damage = 7,   .fire_rate = 1.0f, .range = 4.0f, .cost = 20 },  // Missile
-    [4] = { .damage = 5,   .fire_rate = 4.0f, .range = 2.5f, .cost = 15 },  // Plasma
-    [5] = { .damage = 0,   .fire_rate = 0.0f, .range = 0.0f, .cost = 2  },  // Wall
-};
-
-// Enemy stats (matching Unity values)
 typedef struct {
     i32 health;
     f32 speed;
     i32 reward;
     i32 damage_to_base;
 } EnemyStats;
-
-static const EnemyStats ENEMY_STATS[] = {
-    [0] = { .health = 20,   .speed = 1.0f,  .reward = 1,  .damage_to_base = 1 },  // Simple
-    [1] = { .health = 35,   .speed = 2.0f,  .reward = 1,  .damage_to_base = 1 },  // Fast
-    [2] = { .health = 100,  .speed = 0.5f,  .reward = 1,  .damage_to_base = 1 },  // Heavy
-    [3] = { .health = 40,   .speed = 1.0f,  .reward = 1,  .damage_to_base = 1 },  // Shielded
-    [4] = { .health = 100,  .speed = 0.9f,  .reward = 1,  .damage_to_base = 1 },  // Flying
-    [5] = { .health = 5000, .speed = 0.75f, .reward = 10, .damage_to_base = 5 },  // Boss
-};
 
 // Spritesheet layout (@2 retina: 128x128 tiles, 23 columns x 13 rows)
 #define SPRITE_TILE_SIZE 128
@@ -108,21 +94,7 @@ static const EnemyStats ENEMY_STATS[] = {
 #define SPRITE_TOWER_GUN_MISSILE  TILE_NUM(226)
 #define SPRITE_TOWER_GUN_PLASMA   TILE_NUM(206)
 
-// Enemy sprites
-#define SPRITE_ENEMY_SIMPLE       TILE_NUM(245)
-#define SPRITE_ENEMY_FAST         TILE_NUM(247)
-#define SPRITE_ENEMY_HEAVY        TILE_NUM(246)
-#define SPRITE_ENEMY_SHIELDED     TILE_NUM(248)
-#define SPRITE_ENEMY_FLYING       TILE_NUM(271)
-#define SPRITE_ENEMY_FLYING_SHADOW TILE_NUM(294)
-#define SPRITE_ENEMY_BOSS         TILE_NUM(269)
-#define SPRITE_ENEMY_BOSS_SHELL   TILE_NUM(292)
-
-// Shop tower display order (matching Unity shop layout)
-// Wall, Vulcan, Plasma, Missile, DCA, Freeze
 #define SHOP_TOWER_COUNT 6
-static const i32 SHOP_TOWER_ORDER[] = {5, 0, 4, 3, 1, 2};
-static const char *SHOP_TOWER_NAMES[] = {"Wall", "Vulcan", "Plasma", "Missile", "DCA", "Freeze"};
 
 // Bullet constants
 #define BULLET_SPEED 10.0f

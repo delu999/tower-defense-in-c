@@ -3,39 +3,31 @@
 #include "bullet.h"
 #include "enemy.h"
 #include "pathfinding.h"
+#include "content.h"
 #include "config.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 // Get base sprite index for tower type (non-rotating platform)
-static i32 GetTowerBaseSpriteIndex(TowerType type) {
-    switch (type) {
-        case TOWER_VULCAN:  return SPRITE_TOWER_BASE_VULCAN;
-        case TOWER_DCA:     return SPRITE_TOWER_BASE_DCA;
-        case TOWER_FREEZE:  return SPRITE_TOWER_BASE_FREEZE;
-        case TOWER_MISSILE: return SPRITE_TOWER_BASE_MISSILE;
-        case TOWER_PLASMA:  return SPRITE_TOWER_BASE_PLASMA;
-        case TOWER_WALL:    return SPRITE_TOWER_BASE_WALL;
-        default:            return SPRITE_TOWER_BASE_VULCAN;
+static i32 GetTowerBaseSpriteIndex(const GameState *state, TowerType type) {
+    if (type < TOWER_VULCAN || type > TOWER_WALL) {
+        return -1;
     }
+    return state->tower_config[type].base_sprite_id;
 }
 
 // Get gun sprite index for tower type (rotating turret)
-static i32 GetTowerGunSpriteIndex(TowerType type) {
-    switch (type) {
-        case TOWER_VULCAN:  return SPRITE_TOWER_GUN_VULCAN;
-        case TOWER_DCA:     return SPRITE_TOWER_GUN_DCA;
-        case TOWER_FREEZE:  return SPRITE_TOWER_GUN_FREEZE;
-        case TOWER_MISSILE: return SPRITE_TOWER_GUN_MISSILE;
-        case TOWER_PLASMA:  return SPRITE_TOWER_GUN_PLASMA;
-        default:            return -1;  // Wall has no gun
+static i32 GetTowerGunSpriteIndex(const GameState *state, TowerType type) {
+    if (type < TOWER_VULCAN || type > TOWER_WALL) {
+        return -1;
     }
+    return state->tower_config[type].gun_sprite_id;
 }
 
 i32 PlaceTower(GameState *state, TowerType type, i32 grid_x, i32 grid_y) {
     // Check affordability
-    if (state->currency < TOWER_STATS[type].cost) {
+    if (state->currency < state->tower_config[type].stats.cost) {
         printf("Not enough currency to place tower\n");
         return -1;
     }
@@ -89,10 +81,10 @@ i32 PlaceTower(GameState *state, TowerType type, i32 grid_x, i32 grid_y) {
     tower->active = true;
 
     // Deduct cost
-    state->currency -= TOWER_STATS[type].cost;
+    state->currency -= state->tower_config[type].stats.cost;
     printf("Placed %s tower at (%d, %d) for $%d\n",
-           (const char*[]){"Vulcan", "DCA", "Freeze", "Missile", "Plasma", "Wall"}[type],
-           grid_x, grid_y, TOWER_STATS[type].cost);
+           GetTowerName(state, type),
+           grid_x, grid_y, state->tower_config[type].stats.cost);
 
     Direction *new_flow_field = CreateFlowField(&state->map);
     if (new_flow_field) {
@@ -150,7 +142,7 @@ i32 FindNearestEnemy(const GameState *state, Vector2 tower_pos, f32 range) {
 
 void FireBullet(GameState *state, i32 tower_index) {
     Tower *tower = &state->towers[tower_index];
-    const TowerStats *stats = &TOWER_STATS[tower->type];
+    const TowerStats *stats = &state->tower_config[tower->type].stats;
 
     if (tower->target_enemy_id < 0) return;
 
@@ -214,7 +206,7 @@ void UpdateTowers(GameState *state, f32 dt) {
         Tower *tower = &state->towers[i];
         if (!tower->active) continue;
 
-        const TowerStats *stats = &TOWER_STATS[tower->type];
+        const TowerStats *stats = &state->tower_config[tower->type].stats;
 
         // Wall doesn't do anything
         if (tower->type == TOWER_WALL) continue;
@@ -267,7 +259,7 @@ void DrawTowers(const GameState *state, Texture2D spritesheet) {
         if (!tower->active) continue;
 
         // Draw base (non-rotating)
-        i32 base_id = GetTowerBaseSpriteIndex(tower->type);
+        i32 base_id = GetTowerBaseSpriteIndex(state, tower->type);
         i32 base_sx = (base_id % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
         i32 base_sy = (base_id / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
         Rectangle base_src = {base_sx, base_sy, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
@@ -280,7 +272,7 @@ void DrawTowers(const GameState *state, Texture2D spritesheet) {
         DrawTexturePro(spritesheet, base_src, dest, (Vector2){0, 0}, 0, WHITE);
 
         // Draw gun (rotating) - walls have no gun
-        i32 gun_id = GetTowerGunSpriteIndex(tower->type);
+        i32 gun_id = GetTowerGunSpriteIndex(state, tower->type);
         if (gun_id >= 0) {
             i32 gun_sx = (gun_id % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
             i32 gun_sy = (gun_id / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;

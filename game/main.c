@@ -2,6 +2,7 @@
 #include "game.h"
 #include "wave.h"
 #include "ui.h"
+#include "content.h"
 #include "config.h"
 #include "map.h"
 #include <stdio.h>
@@ -89,12 +90,6 @@ i32 main(void) {
     // Scan for .conf levels
     ScanLevels();
 
-    // If no levels found, use built-in InitLevel1/2/3
-    // This is fallback for when .conf files don't exist
-    if (level_count == 0) {
-        printf("No .conf levels found, using built-in levels\n");
-    }
-
     // Initialize game state
     GameState state = {0};
     UIState ui = {0};
@@ -124,63 +119,63 @@ i32 main(void) {
                 // Handle keyboard shortcuts for first 9 levels
                 if (IsKeyPressed(KEY_ONE) && level_count > 0) {
                     state.current_level = 0;
-                    if (LoadMapFromConf(&state.map, level_list[0].filename)) {
+                    if (LoadLevelConfig(&state, level_list[0].filename)) {
                         InitGame(&state, state.current_level);
                         state.screen = SCREEN_PLAYING;
                     }
                 }
                 if (IsKeyPressed(KEY_TWO) && level_count > 1) {
                     state.current_level = 1;
-                    if (LoadMapFromConf(&state.map, level_list[1].filename)) {
+                    if (LoadLevelConfig(&state, level_list[1].filename)) {
                         InitGame(&state, state.current_level);
                         state.screen = SCREEN_PLAYING;
                     }
                 }
                 if (IsKeyPressed(KEY_THREE) && level_count > 2) {
                     state.current_level = 2;
-                    if (LoadMapFromConf(&state.map, level_list[2].filename)) {
+                    if (LoadLevelConfig(&state, level_list[2].filename)) {
                         InitGame(&state, state.current_level);
                         state.screen = SCREEN_PLAYING;
                     }
                 }
                 if (IsKeyPressed(KEY_FOUR) && level_count > 3) {
                     state.current_level = 3;
-                    if (LoadMapFromConf(&state.map, level_list[3].filename)) {
+                    if (LoadLevelConfig(&state, level_list[3].filename)) {
                         InitGame(&state, state.current_level);
                         state.screen = SCREEN_PLAYING;
                     }
                 }
                 if (IsKeyPressed(KEY_FIVE) && level_count > 4) {
                     state.current_level = 4;
-                    if (LoadMapFromConf(&state.map, level_list[4].filename)) {
+                    if (LoadLevelConfig(&state, level_list[4].filename)) {
                         InitGame(&state, state.current_level);
                         state.screen = SCREEN_PLAYING;
                     }
                 }
                 if (IsKeyPressed(KEY_SIX) && level_count > 5) {
                     state.current_level = 5;
-                    if (LoadMapFromConf(&state.map, level_list[5].filename)) {
+                    if (LoadLevelConfig(&state, level_list[5].filename)) {
                         InitGame(&state, state.current_level);
                         state.screen = SCREEN_PLAYING;
                     }
                 }
                 if (IsKeyPressed(KEY_SEVEN) && level_count > 6) {
                     state.current_level = 6;
-                    if (LoadMapFromConf(&state.map, level_list[6].filename)) {
+                    if (LoadLevelConfig(&state, level_list[6].filename)) {
                         InitGame(&state, state.current_level);
                         state.screen = SCREEN_PLAYING;
                     }
                 }
                 if (IsKeyPressed(KEY_EIGHT) && level_count > 7) {
                     state.current_level = 7;
-                    if (LoadMapFromConf(&state.map, level_list[7].filename)) {
+                    if (LoadLevelConfig(&state, level_list[7].filename)) {
                         InitGame(&state, state.current_level);
                         state.screen = SCREEN_PLAYING;
                     }
                 }
                 if (IsKeyPressed(KEY_NINE) && level_count > 8) {
                     state.current_level = 8;
-                    if (LoadMapFromConf(&state.map, level_list[8].filename)) {
+                    if (LoadLevelConfig(&state, level_list[8].filename)) {
                         InitGame(&state, state.current_level);
                         state.screen = SCREEN_PLAYING;
                     }
@@ -191,7 +186,9 @@ i32 main(void) {
                 if (wheel != 0) {
                     menu_scroll -= wheel;
                     if (menu_scroll < 0) menu_scroll = 0;
-                    if (menu_scroll > level_count - visible_items) menu_scroll = level_count - visible_items;
+                    i32 max_scroll = level_count - visible_items;
+                    if (max_scroll < 0) max_scroll = 0;
+                    if (menu_scroll > max_scroll) menu_scroll = max_scroll;
                 }
 
                 // Mouse click on level buttons
@@ -206,7 +203,7 @@ i32 main(void) {
                         Rectangle button = {button_x, button_y, button_w, menu_item_h - 4};
                         if (CheckCollisionPointRec(mouse, button)) {
                             state.current_level = i;
-                            if (LoadMapFromConf(&state.map, level_list[i].filename)) {
+                            if (LoadLevelConfig(&state, level_list[i].filename)) {
                                 InitGame(&state, state.current_level);
                                 state.screen = SCREEN_PLAYING;
                             }
@@ -234,9 +231,8 @@ i32 main(void) {
 
             case SCREEN_GAME_OVER:
                 if (IsKeyPressed(KEY_R)) {
-                    // Reload map from config if levels exist
                     if (level_count > 0 && state.current_level < level_count) {
-                        LoadMapFromConf(&state.map, level_list[state.current_level].filename);
+                        LoadLevelConfig(&state, level_list[state.current_level].filename);
                     }
                     InitGame(&state, state.current_level);
                     state.screen = SCREEN_PLAYING;
@@ -249,7 +245,7 @@ i32 main(void) {
             case SCREEN_VICTORY:
                 if (IsKeyPressed(KEY_N) && state.current_level < level_count - 1) {
                     state.current_level++;
-                    if (LoadMapFromConf(&state.map, level_list[state.current_level].filename)) {
+                    if (LoadLevelConfig(&state, level_list[state.current_level].filename)) {
                         InitGame(&state, state.current_level);
                         state.screen = SCREEN_PLAYING;
                     }

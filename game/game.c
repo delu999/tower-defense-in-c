@@ -33,12 +33,6 @@ void InitGame(GameState *state, i32 level) {
     memset(state->enemies, 0, sizeof(state->enemies));
     memset(state->bullets, 0, sizeof(state->bullets));
 
-    // Initialize map only if not already loaded from config
-    // (LoadMapFromConf is called before InitGame in main.c for .conf levels)
-    if (state->map.width == 0 || state->map.height == 0) {
-        InitMap(&state->map, level);
-    }
-
     // Validate paths
     if (!ValidatePaths(&state->map)) {
         printf("WARNING: Map has unreachable areas!\n");
@@ -49,8 +43,11 @@ void InitGame(GameState *state, i32 level) {
         printf("WARNING: Failed to create flow field\n");
     }
 
-    // Initialize wave manager
-    InitWaveManager(&state->wave_mgr, level);
+    // Initialize wave manager from loaded level config.
+    InitWaveManager(&state->wave_mgr,
+                    state->level_wave_entries,
+                    state->level_wave_sizes,
+                    state->level_total_waves);
     InitUI(state->ui);
 
     printf("Game initialized!\n");
