@@ -80,7 +80,7 @@ void UpdateUI(UIState *ui, GameState *game, f32 dt) {
     // Handle tower placement (only in map area)
     if (ui->placing_tower && ui->selected_tower >= 0) {
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && IsMouseInMap(mouse_pos)) {
-            i32 result = PlaceTower(game, ui->selected_tower, mouse_grid_x, mouse_grid_y);
+            i32 result = PlaceTower(game, (TowerType)ui->selected_tower, mouse_grid_x, mouse_grid_y);
             if (result < 0) {
                 if (game->currency < TOWER_STATS[ui->selected_tower].cost) {
                     ShowAlert(ui, "Not enough currency!");

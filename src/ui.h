@@ -6,7 +6,7 @@
 
 // UI state
 struct UIState {
-    TowerType selected_tower;   // -1 if nothing selected
+    i32 selected_tower;         // TowerType index, -1 if nothing selected
     i32 selected_tower_index;   // Tower being inspected (-1 if none)
     char alert_message[128];
     f32 alert_timer;
