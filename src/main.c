@@ -73,7 +73,8 @@ i32 main(void) {
         CloseWindow();
         return 1;
     }
-    SetTextureFilter(spritesheet, TEXTURE_FILTER_BILINEAR);
+    // Use point sampling for atlas sprites to avoid texture bleeding between tiles.
+    SetTextureFilter(spritesheet, TEXTURE_FILTER_POINT);
 
     // Load font at large size for crisp rendering at all display sizes
     font = LoadFontEx("assets/fonts/Poppins-Regular.ttf", 96, 0, 0);

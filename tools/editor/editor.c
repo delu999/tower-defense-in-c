@@ -290,7 +290,8 @@ void InitEditor(EditorState *ed) {
     if (ed->spritesheet.id == 0) {
         printf("Failed to load spritesheet!\n");
     }
-    SetTextureFilter(ed->spritesheet, TEXTURE_FILTER_BILINEAR);
+    // Use point sampling for atlas sprites to avoid texture bleeding between tiles.
+    SetTextureFilter(ed->spritesheet, TEXTURE_FILTER_POINT);
 
     ed->font = LoadFontEx("assets/fonts/Poppins-Regular.ttf", 96, 0, 0);
     if (ed->font.texture.id == 0) {
