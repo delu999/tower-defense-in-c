@@ -88,6 +88,22 @@ static bool CanStartWave(const GameState *game) {
            game->wave_mgr.current_wave < game->wave_mgr.total_waves;
 }
 
+static void SelectShopTower(UIState *ui, const GameState *game, i32 slot_index) {
+    if (slot_index < 0 || slot_index >= SHOP_TOWER_COUNT) {
+        return;
+    }
+
+    i32 tower_type = game->shop_tower_order[slot_index];
+    if (ui->selected_tower == tower_type) {
+        ui->selected_tower = -1;
+        ui->placing_tower = false;
+    } else {
+        ui->selected_tower = tower_type;
+        ui->placing_tower = true;
+        ui->selected_tower_index = -1;
+    }
+}
+
 static void DrawControlButton(Font font, Rectangle rect, const char *label, bool enabled, bool active) {
     Color bg = enabled ? (Color){75, 75, 75, 255} : (Color){50, 50, 50, 255};
     Color border = active ? YELLOW : (enabled ? LIGHTGRAY : GRAY);
@@ -158,15 +174,7 @@ void UpdateUI(UIState *ui, GameState *game, f32 dt) {
         for (i32 i = 0; i < SHOP_TOWER_COUNT; i++) {
             Rectangle btn = GetShopButton(i);
             if (CheckCollisionPointRec(mouse_pos, btn)) {
-                i32 tower_type = game->shop_tower_order[i];
-                if (ui->selected_tower == tower_type) {
-                    ui->selected_tower = -1;
-                    ui->placing_tower = false;
-                } else {
-                    ui->selected_tower = tower_type;
-                    ui->placing_tower = true;
-                    ui->selected_tower_index = -1;
-                }
+                SelectShopTower(ui, game, i);
                 return;
             }
         }
@@ -174,6 +182,14 @@ void UpdateUI(UIState *ui, GameState *game, f32 dt) {
 
     if (game->paused) {
         return;
+    }
+
+    for (i32 i = 0; i < SHOP_TOWER_COUNT && i < 9; i++) {
+        KeyboardKey key = (KeyboardKey)(KEY_ONE + i);
+        if (IsKeyPressed(key)) {
+            SelectShopTower(ui, game, i);
+            return;
+        }
     }
 
     // Handle tower placement (only in map area)
