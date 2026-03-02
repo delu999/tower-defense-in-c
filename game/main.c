@@ -65,6 +65,7 @@ i32 main(void) {
     // Initialize window with HiDPI support
     SetConfigFlags(FLAG_WINDOW_HIGHDPI);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Tower Defense");
+    SetExitKey(KEY_NULL);
     SetTargetFPS(TARGET_FPS);
 
     // Load assets
