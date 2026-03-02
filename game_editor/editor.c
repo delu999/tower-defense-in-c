@@ -370,8 +370,8 @@ void EditorNewTurrets(EditorState *ed) {
     ed->turret_entries[TOWER_VULCAN] = (EditorTurretEntry){"Vulcan", 10, 1.0f, 2.0f, 5, 180, 203, 1};
     ed->turret_entries[TOWER_DCA] = (EditorTurretEntry){"DCA", 20, 1.0f, 2.0f, 25, 181, 205, 4};
     ed->turret_entries[TOWER_FREEZE] = (EditorTurretEntry){"Freeze", 0, 0.5f, 1.5f, 30, 181, 22, 5};
-    ed->turret_entries[TOWER_MISSILE] = (EditorTurretEntry){"Missile", 7, 1.0f, 4.0f, 20, 182, 226, 3};
-    ed->turret_entries[TOWER_PLASMA] = (EditorTurretEntry){"Plasma", 5, 4.0f, 2.5f, 15, 183, 206, 2};
+    ed->turret_entries[TOWER_MISSILE] = (EditorTurretEntry){"Missile", 7, 1.0f, 4.0f, 20, 183, 206, 3};
+    ed->turret_entries[TOWER_PLASMA] = (EditorTurretEntry){"Plasma", 5, 4.0f, 2.5f, 15, 182, 226, 2};
     ed->turret_entries[TOWER_WALL] = (EditorTurretEntry){"Wall", 0, 0.0f, 0.0f, 2, 180, -1, 0};
 
     ed->turret_filename[0] = '\0';
