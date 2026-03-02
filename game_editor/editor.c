@@ -20,11 +20,19 @@ static const char *TILE_TYPE_NAMES[] = {
 
 #define PAL_TILE_SIZE 36
 #define PAL_MARGIN 2
-#define PAL_START_Y 70
+#define PAL_START_Y 112
 #define PAL_VISIBLE_ROWS 10
 
 #define TAB_W 130
 #define TAB_H 28
+
+static Rectangle GetLayerToggleRect(void) {
+    return (Rectangle){4, 76, EDITOR_PANEL_WIDTH - 8, 14};
+}
+
+static Rectangle GetEraseToggleRect(void) {
+    return (Rectangle){4, 94, EDITOR_PANEL_WIDTH - 8, 14};
+}
 
 static void StripLineEnding(char *line) {
     i32 len = (i32)strlen(line);
@@ -82,6 +90,9 @@ static Rectangle GetTabRect(i32 index) {
 }
 
 static void DrawSpriteAtGrid(const EditorState *ed, i32 sprite_id, i32 grid_x, i32 grid_y) {
+    if (sprite_id < 0) {
+        return;
+    }
     i32 src_x = (sprite_id % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
     i32 src_y = (sprite_id / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
     Rectangle src = {(f32)src_x, (f32)src_y, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
@@ -132,6 +143,22 @@ static void DrawPalette(const EditorState *ed) {
         DrawRectangleLinesEx(r, 1, selected ? WHITE : GRAY);
         DrawTextEx(ed->font, type_labels[i], (Vector2){(f32)bx + 2, (f32)by + 1}, 12, 0, selected ? BLACK : LIGHTGRAY);
     }
+
+    Rectangle layer_btn = GetLayerToggleRect();
+    Rectangle erase_btn = GetEraseToggleRect();
+    DrawRectangleRec(layer_btn, ed->paint_background ? (Color){60, 120, 180, 255} : (Color){65, 65, 65, 255});
+    DrawRectangleLinesEx(layer_btn, 1, ed->paint_background ? SKYBLUE : GRAY);
+    DrawTextEx(ed->font,
+               TextFormat("Layer: %s", ed->paint_background ? "BACKGROUND" : "FOREGROUND"),
+               (Vector2){layer_btn.x + 4, layer_btn.y + 1},
+               12, 1, WHITE);
+
+    DrawRectangleRec(erase_btn, ed->erase_mode ? (Color){140, 95, 40, 255} : (Color){65, 65, 65, 255});
+    DrawRectangleLinesEx(erase_btn, 1, ed->erase_mode ? ORANGE : GRAY);
+    DrawTextEx(ed->font,
+               TextFormat("Erase: %s", ed->erase_mode ? "ON" : "OFF"),
+               (Vector2){erase_btn.x + 4, erase_btn.y + 1},
+               12, 1, WHITE);
 
     i32 cols = EDITOR_PALETTE_COLS;
     i32 cell = PAL_TILE_SIZE + PAL_MARGIN;
@@ -186,13 +213,15 @@ static void DrawPalette(const EditorState *ed) {
         "F1/F2/F3: switch section",
         "Click/Drag: paint tiles",
         "Right-click: flood fill",
+        "L: toggle FG/BG layer",
+        "E: toggle erase mode",
         "Ctrl+S: save",
         "Ctrl+B: browse files",
         "Ctrl+N: new file",
         "Ctrl+Z/Y: undo/redo",
         "G: toggle grid"
     };
-    for (i32 i = 0; i < 8; i++) {
+    for (i32 i = 0; i < 10; i++) {
         DrawTextEx(ed->font, help[i], (Vector2){4, (f32)(help_y + 16 + i * 14)}, 12, 1, LIGHTGRAY);
     }
 }
@@ -299,8 +328,9 @@ void EditorNewMap(EditorState *ed) {
 
     for (i32 y = 0; y < ed->map.height; y++) {
         for (i32 x = 0; x < ed->map.width; x++) {
-            ed->map.tiles[y][x] = SPRITE_GROUND;
-            ed->map.cell_types[y][x] = TILE_BUILDABLE;
+            ed->map.background_tiles[y][x] = -1;
+            ed->map.tiles[y][x] = -1;
+            ed->map.cell_types[y][x] = TILE_BLOCKED;
         }
     }
 
@@ -358,6 +388,8 @@ void InitEditor(EditorState *ed) {
     ed->selected_type = TILE_BUILDABLE;
     ed->mode = MODE_EDIT;
     ed->section = EDITOR_SECTION_LEVELS;
+    ed->paint_background = false;
+    ed->erase_mode = false;
     ed->last_paint_x = -1;
     ed->last_paint_y = -1;
 
@@ -412,12 +444,17 @@ void EditorUndo(EditorState *ed) {
 
     ed->undo_head--;
     EditorAction *a = &ed->undo_stack[ed->undo_head];
-    ed->map.tiles[a->y][a->x] = a->old_tile;
-    ed->map.cell_types[a->y][a->x] = (TileType)a->old_type;
+    if (a->is_background) {
+        ed->map.background_tiles[a->y][a->x] = a->old_tile;
+    } else {
+        ed->map.tiles[a->y][a->x] = a->old_tile;
+        ed->map.cell_types[a->y][a->x] = (TileType)a->old_type;
+    }
     ed->modified = true;
 
-    if (a->old_type == TILE_SPAWN || a->new_type == TILE_SPAWN ||
-        a->old_type == TILE_BASE || a->new_type == TILE_BASE) {
+    if (!a->is_background &&
+        (a->old_type == TILE_SPAWN || a->new_type == TILE_SPAWN ||
+         a->old_type == TILE_BASE || a->new_type == TILE_BASE)) {
         EditorRebuildSpawnBase(ed);
     }
 }
@@ -426,12 +463,16 @@ void EditorRedo(EditorState *ed) {
     if (ed->undo_head >= ed->undo_count) return;
 
     EditorAction *a = &ed->undo_stack[ed->undo_head];
-    ed->map.tiles[a->y][a->x] = a->new_tile;
-    ed->map.cell_types[a->y][a->x] = (TileType)a->new_type;
+    if (a->is_background) {
+        ed->map.background_tiles[a->y][a->x] = a->new_tile;
+    } else {
+        ed->map.tiles[a->y][a->x] = a->new_tile;
+        ed->map.cell_types[a->y][a->x] = (TileType)a->new_type;
+    }
     ed->undo_head++;
     ed->modified = true;
 
-    if (a->new_type == TILE_SPAWN || a->new_type == TILE_BASE) {
+    if (!a->is_background && (a->new_type == TILE_SPAWN || a->new_type == TILE_BASE)) {
         EditorRebuildSpawnBase(ed);
     }
 }
@@ -455,14 +496,36 @@ void EditorPaintTile(EditorState *ed, i32 grid_x, i32 grid_y) {
     if (grid_x < 0 || grid_x >= ed->map.width || grid_y < 0 || grid_y >= ed->map.height) return;
     if (grid_x == ed->last_paint_x && grid_y == ed->last_paint_y) return;
 
-    i32 new_tile = ed->selected_sprite;
-    TileType new_type = ed->selected_type;
+    i32 new_tile = ed->erase_mode ? -1 : ed->selected_sprite;
+
+    if (ed->paint_background) {
+        if (ed->map.background_tiles[grid_y][grid_x] == new_tile) return;
+
+        EditorAction action = {
+            .x = grid_x,
+            .y = grid_y,
+            .is_background = true,
+            .old_tile = ed->map.background_tiles[grid_y][grid_x],
+            .old_type = 0,
+            .new_tile = new_tile,
+            .new_type = 0
+        };
+
+        ed->map.background_tiles[grid_y][grid_x] = new_tile;
+        EditorPushAction(ed, action);
+        ed->last_paint_x = grid_x;
+        ed->last_paint_y = grid_y;
+        return;
+    }
+
+    TileType new_type = ed->erase_mode ? TILE_BLOCKED : ed->selected_type;
 
     if (ed->map.tiles[grid_y][grid_x] == new_tile && ed->map.cell_types[grid_y][grid_x] == new_type) return;
 
     EditorAction action = {
         .x = grid_x,
         .y = grid_y,
+        .is_background = false,
         .old_tile = ed->map.tiles[grid_y][grid_x],
         .old_type = ed->map.cell_types[grid_y][grid_x],
         .new_tile = new_tile,
@@ -491,6 +554,7 @@ static void FloodFillRecursive(EditorState *ed, i32 x, i32 y, i32 target_tile, T
     EditorAction action = {
         .x = x,
         .y = y,
+        .is_background = false,
         .old_tile = target_tile,
         .old_type = target_type,
         .new_tile = replace_tile,
@@ -507,16 +571,70 @@ static void FloodFillRecursive(EditorState *ed, i32 x, i32 y, i32 target_tile, T
     FloodFillRecursive(ed, x, y - 1, target_tile, target_type, replace_tile, replace_type);
 }
 
+static void FloodFillBackground(EditorState *ed, i32 x, i32 y, i32 target_tile, i32 replace_tile) {
+    if (x < 0 || x >= ed->map.width || y < 0 || y >= ed->map.height) return;
+    if (ed->map.background_tiles[y][x] != target_tile) return;
+    if (target_tile == replace_tile) return;
+
+    EditorAction action = {
+        .x = x,
+        .y = y,
+        .is_background = true,
+        .old_tile = target_tile,
+        .old_type = 0,
+        .new_tile = replace_tile,
+        .new_type = 0
+    };
+    EditorPushAction(ed, action);
+
+    ed->map.background_tiles[y][x] = replace_tile;
+
+    FloodFillBackground(ed, x + 1, y, target_tile, replace_tile);
+    FloodFillBackground(ed, x - 1, y, target_tile, replace_tile);
+    FloodFillBackground(ed, x, y + 1, target_tile, replace_tile);
+    FloodFillBackground(ed, x, y - 1, target_tile, replace_tile);
+}
+
 void EditorFloodFill(EditorState *ed, i32 grid_x, i32 grid_y) {
     if (grid_x < 0 || grid_x >= ed->map.width || grid_y < 0 || grid_y >= ed->map.height) return;
 
+    if (ed->paint_background) {
+        i32 target_bg = ed->map.background_tiles[grid_y][grid_x];
+        i32 replace_bg = ed->erase_mode ? -1 : ed->selected_sprite;
+        FloodFillBackground(ed, grid_x, grid_y, target_bg, replace_bg);
+        return;
+    }
+
     i32 target_tile = ed->map.tiles[grid_y][grid_x];
     TileType target_type = ed->map.cell_types[grid_y][grid_x];
-    FloodFillRecursive(ed, grid_x, grid_y, target_tile, target_type, ed->selected_sprite, ed->selected_type);
+    i32 replace_tile = ed->erase_mode ? -1 : ed->selected_sprite;
+    TileType replace_type = ed->erase_mode ? TILE_BLOCKED : ed->selected_type;
+    FloodFillRecursive(ed, grid_x, grid_y, target_tile, target_type, replace_tile, replace_type);
     EditorRebuildSpawnBase(ed);
 }
 
+static bool FindFirstEmptyTile(const EditorState *ed, i32 *out_x, i32 *out_y) {
+    for (i32 y = 0; y < ed->map.height; y++) {
+        for (i32 x = 0; x < ed->map.width; x++) {
+            if (ed->map.background_tiles[y][x] < 0 && ed->map.tiles[y][x] < 0) {
+                *out_x = x;
+                *out_y = y;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 bool EditorSaveMap(EditorState *ed, const char *filename) {
+    i32 empty_x = -1;
+    i32 empty_y = -1;
+    if (FindFirstEmptyTile(ed, &empty_x, &empty_y)) {
+        printf("Cannot save level: map contains a cell with no foreground and no background tile at (%d, %d)\n",
+               empty_x, empty_y);
+        return false;
+    }
+
     FILE *f = fopen(filename, "w");
     if (!f) {
         printf("Failed to open file for writing: %s\n", filename);
@@ -531,6 +649,15 @@ bool EditorSaveMap(EditorState *ed, const char *filename) {
     }
     fprintf(f, "width=%d\n", ed->map.width);
     fprintf(f, "height=%d\n", ed->map.height);
+
+    fprintf(f, "background\n");
+    for (i32 y = 0; y < ed->map.height; y++) {
+        for (i32 x = 0; x < ed->map.width; x++) {
+            if (x > 0) fprintf(f, " ");
+            fprintf(f, "%d", ed->map.background_tiles[y][x]);
+        }
+        fprintf(f, "\n");
+    }
 
     fprintf(f, "tiles\n");
     for (i32 y = 0; y < ed->map.height; y++) {
@@ -573,8 +700,16 @@ bool EditorLoadMap(EditorState *ed, const char *filename) {
     strncpy(ed->turrets_file, "turrets/default.conf", sizeof(ed->turrets_file) - 1);
     ed->wave_count = 0;
 
+    for (i32 y = 0; y < MAP_HEIGHT; y++) {
+        for (i32 x = 0; x < MAP_WIDTH; x++) {
+            ed->map.background_tiles[y][x] = -1;
+            ed->map.tiles[y][x] = -1;
+            ed->map.cell_types[y][x] = TILE_BLOCKED;
+        }
+    }
+
     char line[1024];
-    enum { SECTION_HEADER, SECTION_TILES, SECTION_TYPES } section = SECTION_HEADER;
+    enum { SECTION_HEADER, SECTION_BACKGROUND, SECTION_TILES, SECTION_TYPES } section = SECTION_HEADER;
     i32 row = 0;
 
     while (fgets(line, sizeof(line), f)) {
@@ -595,9 +730,25 @@ bool EditorLoadMap(EditorState *ed, const char *filename) {
                 ed->map.width = atoi(trimmed + 6);
             } else if (strncmp(trimmed, "height=", 7) == 0) {
                 ed->map.height = atoi(trimmed + 7);
+            } else if (strcmp(trimmed, "background") == 0) {
+                section = SECTION_BACKGROUND;
+                row = 0;
             } else if (strcmp(trimmed, "tiles") == 0) {
                 section = SECTION_TILES;
                 row = 0;
+            }
+        } else if (section == SECTION_BACKGROUND) {
+            if (strcmp(trimmed, "tiles") == 0) {
+                section = SECTION_TILES;
+                row = 0;
+                continue;
+            }
+            if (row < ed->map.height) {
+                char *p = trimmed;
+                for (i32 x = 0; x < ed->map.width && *p; x++) {
+                    ed->map.background_tiles[row][x] = (i32)strtol(p, &p, 10);
+                }
+                row++;
             }
         } else if (section == SECTION_TILES) {
             if (strcmp(trimmed, "types") == 0) {
@@ -1041,6 +1192,18 @@ static void UpdateLevelSection(EditorState *ed) {
             return;
         }
 
+        Rectangle layer_btn = GetLayerToggleRect();
+        if (CheckCollisionPointRec(mouse, layer_btn)) {
+            ed->paint_background = !ed->paint_background;
+            return;
+        }
+
+        Rectangle erase_btn = GetEraseToggleRect();
+        if (CheckCollisionPointRec(mouse, erase_btn)) {
+            ed->erase_mode = !ed->erase_mode;
+            return;
+        }
+
         if (mouse.x < EDITOR_PANEL_WIDTH) {
             for (i32 i = 0; i < 5; i++) {
                 Rectangle r = {4 + i * 42.0f, 58, 40, 14};
@@ -1065,6 +1228,7 @@ static void UpdateLevelSection(EditorState *ed) {
                     i32 idx = row * cols + col;
                     if (idx >= 0 && idx < SPRITE_TOTAL_TILES) {
                         ed->selected_sprite = idx;
+                        ed->erase_mode = false;
                     }
                 }
             }
@@ -1083,6 +1247,14 @@ static void UpdateLevelSection(EditorState *ed) {
 
     if (IsKeyPressed(KEY_G)) {
         ed->show_grid = !ed->show_grid;
+    }
+
+    if (IsKeyPressed(KEY_L)) {
+        ed->paint_background = !ed->paint_background;
+    }
+
+    if (IsKeyPressed(KEY_E)) {
+        ed->erase_mode = !ed->erase_mode;
     }
 
     if (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) {
@@ -1289,6 +1461,17 @@ void UpdateEditor(EditorState *ed) {
 static void DrawLevelSection(const EditorState *ed) {
     for (i32 y = 0; y < ed->map.height; y++) {
         for (i32 x = 0; x < ed->map.width; x++) {
+            Color cell = ((x + y) % 2 == 0) ? (Color){74, 74, 74, 255} : (Color){92, 92, 92, 255};
+            DrawRectangle(EDITOR_MAP_OFFSET_X + x * TILE_SIZE,
+                          EDITOR_MAP_OFFSET_Y + y * TILE_SIZE,
+                          TILE_SIZE, TILE_SIZE,
+                          cell);
+        }
+    }
+
+    for (i32 y = 0; y < ed->map.height; y++) {
+        for (i32 x = 0; x < ed->map.width; x++) {
+            DrawSpriteAtGrid(ed, ed->map.background_tiles[y][x], x, y);
             DrawSpriteAtGrid(ed, ed->map.tiles[y][x], x, y);
 
             if (ed->map.cell_types[y][x] == TILE_SPAWN) {
@@ -1337,7 +1520,7 @@ static void DrawLevelSection(const EditorState *ed) {
                                          TILE_SIZE,
                                          TILE_SIZE},
                              2,
-                             YELLOW);
+                             ed->paint_background ? SKYBLUE : YELLOW);
     }
 
     DrawPalette(ed);

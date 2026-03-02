@@ -95,7 +95,6 @@ typedef struct {
 #define SPRITE_TOWER_GUN_PLASMA   TILE_NUM(206)
 
 #define SHOP_TOWER_COUNT 6
-
 // Bullet constants
 #define BULLET_SPEED 10.0f
 #define MISSILE_SPLASH_RADIUS 0.5f

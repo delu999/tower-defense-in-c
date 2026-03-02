@@ -28,6 +28,7 @@ typedef enum {
 
 typedef struct {
     i32 x, y;
+    bool is_background;
     i32 old_tile;
     i32 old_type;
     i32 new_tile;
@@ -80,6 +81,8 @@ typedef struct {
     i32 wave_count;
 
     bool show_grid;
+    bool paint_background;
+    bool erase_mode;
     bool modified;
 
     Texture2D spritesheet;

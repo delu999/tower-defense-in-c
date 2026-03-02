@@ -6,6 +6,9 @@
 
 // Helper to draw a sprite from the spritesheet at a grid position
 static void DrawSpriteAtGrid(Texture2D spritesheet, i32 sprite_id, i32 grid_x, i32 grid_y) {
+    if (sprite_id < 0) {
+        return;
+    }
     i32 src_x = (sprite_id % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
     i32 src_y = (sprite_id / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
     Rectangle src = {src_x, src_y, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
@@ -48,6 +51,7 @@ static void DrawBaseMarker(i32 grid_x, i32 grid_y) {
 void DrawMap(const Map *map, Texture2D spritesheet) {
     for (i32 y = 0; y < map->height; y++) {
         for (i32 x = 0; x < map->width; x++) {
+            DrawSpriteAtGrid(spritesheet, map->background_tiles[y][x], x, y);
             DrawSpriteAtGrid(spritesheet, map->tiles[y][x], x, y);
         }
     }
@@ -117,9 +121,15 @@ bool LoadMapFromConf(Map *map, const char *filename) {
     memset(map, 0, sizeof(Map));
 
     char line[1024];
-    enum { SECTION_HEADER, SECTION_TILES, SECTION_TYPES } section = SECTION_HEADER;
+    enum { SECTION_HEADER, SECTION_BACKGROUND, SECTION_TILES, SECTION_TYPES } section = SECTION_HEADER;
     i32 row = 0;
     char level_name[64] = "Untitled";
+
+    for (i32 y = 0; y < MAP_HEIGHT; y++) {
+        for (i32 x = 0; x < MAP_WIDTH; x++) {
+            map->background_tiles[y][x] = SPRITE_SAND;
+        }
+    }
 
     while (fgets(line, sizeof(line), f)) {
         // Strip newline
@@ -133,9 +143,25 @@ bool LoadMapFromConf(Map *map, const char *filename) {
                 map->width = atoi(line + 6);
             } else if (strncmp(line, "height=", 7) == 0) {
                 map->height = atoi(line + 7);
+            } else if (strcmp(line, "background") == 0) {
+                section = SECTION_BACKGROUND;
+                row = 0;
             } else if (strcmp(line, "tiles") == 0) {
                 section = SECTION_TILES;
                 row = 0;
+            }
+        } else if (section == SECTION_BACKGROUND) {
+            if (strcmp(line, "tiles") == 0) {
+                section = SECTION_TILES;
+                row = 0;
+                continue;
+            }
+            if (row < map->height) {
+                char *p = line;
+                for (i32 x = 0; x < map->width && *p; x++) {
+                    map->background_tiles[row][x] = (i32)strtol(p, &p, 10);
+                }
+                row++;
             }
         } else if (section == SECTION_TILES) {
             if (strcmp(line, "types") == 0) {

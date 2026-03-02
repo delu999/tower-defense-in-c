@@ -288,7 +288,7 @@ bool LoadLevelConfig(GameState *state, const char *filename) {
             continue;
         }
 
-        if (strcmp(trimmed, "tiles") == 0) {
+        if (strcmp(trimmed, "background") == 0 || strcmp(trimmed, "tiles") == 0) {
             break;
         }
 

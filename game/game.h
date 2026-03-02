@@ -63,6 +63,7 @@ typedef enum {
 
 // Structs
 typedef struct {
+    i32 background_tiles[MAP_HEIGHT][MAP_WIDTH];
     i32 tiles[MAP_HEIGHT][MAP_WIDTH];
     TileType cell_types[MAP_HEIGHT][MAP_WIDTH];
     Vector2 spawn_points[16];
