@@ -136,6 +136,12 @@ void UpdateUI(UIState *ui, GameState *game, f32 dt) {
         ui->alert_timer -= dt;
     }
 
+    if (IsKeyPressed(KEY_ESCAPE) && ui->selected_tower >= 0) {
+        ui->placing_tower = false;
+        ui->selected_tower = -1;
+        return;
+    }
+
     Vector2 mouse_pos = GetMousePosition();
     i32 mouse_grid_x, mouse_grid_y;
     WorldToGrid(mouse_pos, &mouse_grid_x, &mouse_grid_y);
@@ -202,9 +208,6 @@ void UpdateUI(UIState *ui, GameState *game, f32 dt) {
                 } else {
                     ShowAlert(ui, "Can't place tower here!");
                 }
-            } else {
-                ui->placing_tower = false;
-                ui->selected_tower = -1;
             }
         }
 

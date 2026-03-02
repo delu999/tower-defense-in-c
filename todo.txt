@@ -4,7 +4,5 @@ ADD:
 - add enemy that can teleport
 - add enemy that can jump towers
 - add a turret that smashes enemy once placed (or maybe its just a hammer that doesnt get placed)
-- mettere shortcut per deselezionare la torretta
-- dopo il piazzamento lasciare la torretta selezionata
 - fare sfondo con le tile, in moda da avere la stessa risuluzione e maggiore flessibilità
 - migliore la rimozione delle torrette (renderla più intuitiva)
