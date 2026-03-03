@@ -36,6 +36,7 @@ TARGET = ../tower-defense
 
 SRCS = $(wildcard *.c)
 OBJS = $(SRCS:%.c=$(BUILD_DIR)/%.o)
+DEPS = $(OBJS:.o=.d)
 
 all: $(TARGET)
 
@@ -47,7 +48,7 @@ $(TARGET): $(OBJS)
 	@echo "Build complete: $(TARGET)"
 
 $(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
 
 run: $(TARGET)
 	cd .. && ./tower-defense
@@ -56,5 +57,7 @@ clean:
 	rm -rf $(BUILD_DIR) $(TARGET)
 
 rebuild: clean all
+
+-include $(DEPS)
 
 .PHONY: all run clean rebuild

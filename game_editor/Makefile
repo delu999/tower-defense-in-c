@@ -36,6 +36,7 @@ TARGET = ../game-editor
 
 SRCS = main.c editor.c
 OBJS = $(SRCS:%.c=$(BUILD_DIR)/%.o)
+DEPS = $(OBJS:.o=.d)
 
 all: $(TARGET)
 
@@ -47,7 +48,7 @@ $(TARGET): $(OBJS)
 	@echo "Editor build complete: $(TARGET)"
 
 $(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -I../game -c $< -o $@
+	$(CC) $(CFLAGS) -I../game -MMD -MP -c $< -o $@
 
 run: $(TARGET)
 	cd .. && ./game-editor
@@ -56,5 +57,7 @@ clean:
 	rm -rf $(BUILD_DIR) $(TARGET)
 
 rebuild: clean all
+
+-include $(DEPS)
 
 .PHONY: all run clean rebuild
