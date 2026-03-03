@@ -6,6 +6,7 @@
 #include "config.h"
 #include <string.h>
 #include <stdio.h>
+#include <math.h>
 
 void InitUI(UIState *ui) {
     ui->selected_tower = -1;
@@ -79,6 +80,15 @@ static Rectangle GetMenuButtonRect(void) {
         (HUD_HEIGHT - CTRL_BTN_H) / 2.0f,
         CTRL_BTN_W,
         CTRL_BTN_H
+    };
+}
+
+static Rectangle GetRemoveTowerButtonRect(void) {
+    return (Rectangle){
+        SHOP_X + 24,
+        SCREEN_HEIGHT - 52,
+        SHOP_WIDTH - 48,
+        34
     };
 }
 
@@ -233,7 +243,19 @@ void UpdateUI(UIState *ui, GameState *game, f32 dt) {
 
     // Handle tower deletion
     if (ui->selected_tower_index >= 0) {
-        if (IsKeyPressed(KEY_DELETE) || IsKeyPressed(KEY_BACKSPACE)) {
+        bool remove_pressed = IsKeyPressed(KEY_DELETE) || IsKeyPressed(KEY_BACKSPACE);
+        Rectangle remove_btn = GetRemoveTowerButtonRect();
+        bool remove_clicked = IsMouseButtonPressed(MOUSE_LEFT_BUTTON) &&
+                              CheckCollisionPointRec(mouse_pos, remove_btn);
+        bool remove_right_click = IsMouseButtonPressed(MOUSE_RIGHT_BUTTON) && IsMouseInMap(mouse_pos);
+        if (remove_right_click) {
+            const Tower *tower = &game->towers[ui->selected_tower_index];
+            remove_right_click = tower->active &&
+                                 tower->grid_x == mouse_grid_x &&
+                                 tower->grid_y == mouse_grid_y;
+        }
+
+        if (remove_pressed || remove_clicked || remove_right_click) {
             RemoveTower(game, ui->selected_tower_index);
             ui->selected_tower_index = -1;
             ShowAlert(ui, "Tower removed");
@@ -297,6 +319,27 @@ void DrawUI(const UIState *ui, const GameState *game, Texture2D spritesheet, Fon
             DrawCircle((i32)tower->position.x, (i32)tower->position.y, range,
                       ColorAlpha(BLUE, 0.2f));
             DrawCircleLines((i32)tower->position.x, (i32)tower->position.y, range, BLUE);
+
+            // Highlight selected tower tile with a red pulse to suggest removable target.
+            Rectangle selected_tile = {
+                tower->position.x - TILE_SIZE / 2.0f,
+                tower->position.y - TILE_SIZE / 2.0f,
+                TILE_SIZE,
+                TILE_SIZE
+            };
+            f32 pulse = (sinf((f32)GetTime() * 6.0f) + 1.0f) * 0.5f;
+            Color pulse_fill = ColorAlpha(RED, 0.12f + 0.12f * pulse);
+            Color pulse_border = ColorAlpha(RED, 0.65f + 0.35f * pulse);
+            DrawRectangleRec(selected_tile, pulse_fill);
+            DrawRectangleLinesEx(selected_tile, 3, pulse_border);
+
+            Vector2 marker_pos = {
+                selected_tile.x + selected_tile.width - 14,
+                selected_tile.y + 6
+            };
+            DrawCircleV(marker_pos, 10, ColorAlpha(BLACK, 0.6f));
+            DrawCircleV(marker_pos, 8, ColorAlpha(RED, 0.9f));
+            DrawTextEx(font, "X", (Vector2){marker_pos.x - 4, marker_pos.y - 7}, 16, 1, WHITE);
         }
     }
 
@@ -379,9 +422,25 @@ void DrawUI(const UIState *ui, const GameState *game, Texture2D spritesheet, Fon
             DrawTextEx(font, buf,
                       (Vector2){SHOP_X + (SHOP_WIDTH - info_size.x) / 2, SCREEN_HEIGHT - 80},
                       20, 1, YELLOW);
-            DrawTextEx(font, "DEL to remove",
-                      (Vector2){SHOP_X + 30, SCREEN_HEIGHT - 50},
-                      16, 1, LIGHTGRAY);
+
+            Rectangle remove_btn = GetRemoveTowerButtonRect();
+            Vector2 mouse_pos = GetMousePosition();
+            bool hover = CheckCollisionPointRec(mouse_pos, remove_btn);
+            Color remove_bg = hover ? (Color){170, 55, 55, 255} : (Color){130, 45, 45, 255};
+            DrawRectangleRec(remove_btn, remove_bg);
+            DrawRectangleLinesEx(remove_btn, 2, ColorAlpha(WHITE, 0.7f));
+
+            const char *remove_label = "Remove Tower";
+            Vector2 remove_size = MeasureTextEx(font, remove_label, 18, 1);
+            DrawTextEx(font, remove_label,
+                      (Vector2){
+                          remove_btn.x + (remove_btn.width - remove_size.x) / 2,
+                          remove_btn.y + 6
+                      },
+                      18, 1, WHITE);
+            DrawTextEx(font, "Click button, right-click tower, or DEL",
+                      (Vector2){SHOP_X + 20, SCREEN_HEIGHT - 14},
+                      14, 1, LIGHTGRAY);
         }
     }
 
