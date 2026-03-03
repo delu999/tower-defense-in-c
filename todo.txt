@@ -5,3 +5,5 @@ ADD:
 - add enemy that can jump towers
 - add a turret that smashes enemy once placed (or maybe its just a hammer that doesnt get placed)
 - remake levels
+- decide a theme for the game
+- remake sprites (if possible animated ones)
