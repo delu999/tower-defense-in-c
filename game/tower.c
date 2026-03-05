@@ -25,6 +25,41 @@ static i32 GetTowerGunSpriteIndex(const GameState *state, TowerType type) {
     return state->tower_config[type].gun_sprite_id;
 }
 
+static bool IsReachableCell(const Map *map, const bool *reachable, i32 grid_x, i32 grid_y) {
+    if (grid_x < 0 || grid_x >= map->width || grid_y < 0 || grid_y >= map->height) {
+        return false;
+    }
+    i32 idx = grid_y * map->width + grid_x;
+    return reachable[idx];
+}
+
+static bool ValidatePlacementReachability(const GameState *state, const bool *reachable) {
+    const Map *map = &state->map;
+
+    for (i32 i = 0; i < map->spawn_count; i++) {
+        i32 spawn_x = (i32)map->spawn_points[i].x;
+        i32 spawn_y = (i32)map->spawn_points[i].y;
+        if (!IsReachableCell(map, reachable, spawn_x, spawn_y)) {
+            printf("Cannot place tower: spawn %d cannot reach any base\n", i);
+            return false;
+        }
+    }
+
+    for (i32 i = 0; i < state->enemy_count; i++) {
+        const Enemy *enemy = &state->enemies[i];
+        if (!enemy->active || enemy->type == ENEMY_FLYING) continue;
+
+        i32 enemy_grid_x, enemy_grid_y;
+        WorldToGrid(enemy->position, &enemy_grid_x, &enemy_grid_y);
+        if (!IsReachableCell(map, reachable, enemy_grid_x, enemy_grid_y)) {
+            printf("Cannot place tower: enemy %d would be trapped\n", i);
+            return false;
+        }
+    }
+
+    return true;
+}
+
 i32 PlaceTower(GameState *state, TowerType type, i32 grid_x, i32 grid_y) {
     // Check affordability
     if (state->currency < state->tower_config[type].stats.cost) {
@@ -59,9 +94,17 @@ i32 PlaceTower(GameState *state, TowerType type, i32 grid_x, i32 grid_y) {
     TileType old_type = GetTileType(&state->map, grid_x, grid_y);
     SetTileType(&state->map, grid_x, grid_y, TILE_BLOCKED);
 
-    // Validate that all paths are still valid
-    if (!ValidatePaths(&state->map)) {
-        // Restore tile
+    bool reachable[MAP_WIDTH * MAP_HEIGHT] = {0};
+    Direction *trial_flow_field =
+        CreateFlowFieldWithReachability(&state->map, reachable, MAP_WIDTH * MAP_HEIGHT);
+    if (!trial_flow_field) {
+        SetTileType(&state->map, grid_x, grid_y, old_type);
+        printf("Cannot place tower: failed to rebuild flow field\n");
+        return -1;
+    }
+
+    if (!ValidatePlacementReachability(state, reachable)) {
+        free(trial_flow_field);
         SetTileType(&state->map, grid_x, grid_y, old_type);
         printf("Cannot place tower: enemies would be stuck!\n");
         return -1;
@@ -86,13 +129,8 @@ i32 PlaceTower(GameState *state, TowerType type, i32 grid_x, i32 grid_y) {
            GetTowerName(state, type),
            grid_x, grid_y, state->tower_config[type].stats.cost);
 
-    Direction *new_flow_field = CreateFlowField(&state->map);
-    if (new_flow_field) {
-        free(state->flow_field);
-        state->flow_field = new_flow_field;
-    } else {
-        printf("Warning: failed to rebuild flow field after tower placement\n");
-    }
+    free(state->flow_field);
+    state->flow_field = trial_flow_field;
 
     return index;
 }

@@ -445,7 +445,7 @@ static FlowNode FlowPQ_Pop(FlowPQ *pq) {
     return result;
 }
 
-Direction *CreateFlowField(const Map *map) {
+Direction *CreateFlowFieldWithReachability(const Map *map, bool *out_reachable, i32 out_reachable_len) {
     u32 grid_size = map->width * map->height;
 
     // cost field
@@ -537,6 +537,21 @@ Direction *CreateFlowField(const Map *map) {
 
     FlowPQ_Free(&pq);
 
+    if (out_reachable && out_reachable_len > 0) {
+        i32 reachable_count = (i32)grid_size;
+        if (out_reachable_len < reachable_count) {
+            reachable_count = out_reachable_len;
+        }
+
+        for (i32 i = 0; i < reachable_count; i++) {
+            out_reachable[i] = integration_field[i] != UINT32_MAX;
+        }
+
+        for (i32 i = reachable_count; i < out_reachable_len; i++) {
+            out_reachable[i] = false;
+        }
+    }
+
     // flow field — for each cell, point toward the neighbor with lowest integration cost
     Direction *flow_field = malloc(grid_size * sizeof(Direction));
     if (!flow_field) {
@@ -592,6 +607,10 @@ Direction *CreateFlowField(const Map *map) {
     free(cost_field);
     free(integration_field);
     return flow_field;
+}
+
+Direction *CreateFlowField(const Map *map) {
+    return CreateFlowFieldWithReachability(map, NULL, 0);
 }
 
 static const Vector2 dir_arrow_vec[9] = {

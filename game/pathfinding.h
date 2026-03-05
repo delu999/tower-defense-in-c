@@ -24,4 +24,8 @@ void DrawFlowField(const Direction *flow_field, const Map *map);
 // Returns a heap-allocated array of Direction (size map->width * map->height), caller must free
 Direction *CreateFlowField(const Map *map);
 
+// Flow field + reachability map in a single pass.
+// out_reachable can be NULL. If provided, each entry is true when that cell can reach any base.
+Direction *CreateFlowFieldWithReachability(const Map *map, bool *out_reachable, i32 out_reachable_len);
+
 #endif // PATHFINDING_H
