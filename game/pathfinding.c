@@ -462,22 +462,6 @@ Direction *CreateFlowFieldWithReachability(const Map *map, bool *out_reachable, 
         }
     }
 
-    for (i32 y = 0; y < map->height; y++) {
-        for (i32 x = 0; x < map->width; x++) {
-            u32 idx = (u32)y * (u32)map->width + (u32)x;
-            if (cost_field[idx] == 255) continue;
-
-            u32 neighbors[8];
-            u8 neighbors_size = Get_Neighbors(cost_field, (u32)map->width, (u32)map->height, idx, neighbors);
-            for (u8 i = 0; i < neighbors_size; i++) {
-                if (cost_field[neighbors[i]] == 255) {
-                    cost_field[idx] = 2; // penalty for being next to a wall
-                    break;
-                }
-            }
-        }
-    }
-
     // integration field — Dijkstra from all bases
     u32 *integration_field = malloc(grid_size * sizeof(u32));
     if (!integration_field) {
@@ -589,12 +573,12 @@ Direction *CreateFlowFieldWithReachability(const Map *map, bool *out_reachable, 
                 bool candidate_is_diagonal = (nx != (i32)x) && (ny != (i32)y);
 
                 bool better_cost = neighbor_cost < best_cost;
-                bool tie_break_diagonal = (neighbor_cost == best_cost) &&
+                bool tie_break_cardinal = (neighbor_cost == best_cost) &&
                                           (best_dir != DIR_NONE) &&
-                                          candidate_is_diagonal &&
-                                          !best_is_diagonal;
+                                          !candidate_is_diagonal &&
+                                          best_is_diagonal;
 
-                if (better_cost || tie_break_diagonal) {
+                if (better_cost || tie_break_cardinal) {
                     best_cost = neighbor_cost;
                     best_dir = DeltaToDir(nx - (i32)x, ny - (i32)y);
                     best_is_diagonal = candidate_is_diagonal;
