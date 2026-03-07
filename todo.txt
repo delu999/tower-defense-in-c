@@ -1,4 +1,7 @@
-GAME:
+FIX:
+- cambiare font
+
+
 
 ADD:
 - add enemy that can teleport
@@ -7,3 +10,8 @@ ADD:
 - remake levels
 - decide a theme for the game
 - remake sprites (if possible animated ones)
+
+- fare 10 livelli in un certo mondo (es deserto, lava ecc..)
+- capire come fare le sprite e animarle
+- piccolo tutorial per il primo livello
+- storia che lega un livello all'altro
