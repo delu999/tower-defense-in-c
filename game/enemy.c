@@ -18,6 +18,18 @@ static Texture2D enemy_heavy_sheet = {0};
 static bool enemy_heavy_sheet_attempted = false;
 static bool enemy_heavy_sheet_ready = false;
 
+static Texture2D enemy_shielded_sheet = {0};
+static bool enemy_shielded_sheet_attempted = false;
+static bool enemy_shielded_sheet_ready = false;
+
+static Texture2D enemy_flying_sheet = {0};
+static bool enemy_flying_sheet_attempted = false;
+static bool enemy_flying_sheet_ready = false;
+
+static Texture2D enemy_boss_sheet = {0};
+static bool enemy_boss_sheet_attempted = false;
+static bool enemy_boss_sheet_ready = false;
+
 static bool LoadEnemySheet(Texture2D *tex, bool *attempted, bool *ready, const char *path, const char *label) {
     if (*ready) return true;
     if (*attempted) return *ready;
@@ -44,11 +56,17 @@ static void UnloadEnemySheet(Texture2D *tex, bool *attempted, bool *ready) {
 bool LoadEnemyAssets(void) {
     bool ok = true;
     ok &= LoadEnemySheet(&enemy_simple_sheet, &enemy_simple_sheet_attempted, &enemy_simple_sheet_ready,
-                          "assets/sprites/enemies/01/Sprite-0001c.png", "enemy simple");
+                          "assets/sprites/enemies/c01/01.png", "enemy simple");
     ok &= LoadEnemySheet(&enemy_fast_sheet, &enemy_fast_sheet_attempted, &enemy_fast_sheet_ready,
-                          "assets/sprites/enemies/02/Sprite-0002c.png", "enemy fast");
+                          "assets/sprites/enemies/c01/02.png", "enemy fast");
     ok &= LoadEnemySheet(&enemy_heavy_sheet, &enemy_heavy_sheet_attempted, &enemy_heavy_sheet_ready,
-                          "assets/sprites/enemies/03/Sprite-0003c.png", "enemy heavy");
+                          "assets/sprites/enemies/c01/03.png", "enemy heavy");
+    ok &= LoadEnemySheet(&enemy_flying_sheet, &enemy_flying_sheet_attempted, &enemy_flying_sheet_ready,
+                          "assets/sprites/enemies/c01/04.png", "enemy flying");
+    ok &= LoadEnemySheet(&enemy_shielded_sheet, &enemy_shielded_sheet_attempted, &enemy_shielded_sheet_ready,
+                          "assets/sprites/enemies/c01/05.png", "enemy shielded");
+    ok &= LoadEnemySheet(&enemy_boss_sheet, &enemy_boss_sheet_attempted, &enemy_boss_sheet_ready,
+                          "assets/sprites/enemies/c01/06.png", "enemy boss");
     return ok;
 }
 
@@ -56,6 +74,9 @@ void UnloadEnemyAssets(void) {
     UnloadEnemySheet(&enemy_simple_sheet, &enemy_simple_sheet_attempted, &enemy_simple_sheet_ready);
     UnloadEnemySheet(&enemy_fast_sheet, &enemy_fast_sheet_attempted, &enemy_fast_sheet_ready);
     UnloadEnemySheet(&enemy_heavy_sheet, &enemy_heavy_sheet_attempted, &enemy_heavy_sheet_ready);
+    UnloadEnemySheet(&enemy_shielded_sheet, &enemy_shielded_sheet_attempted, &enemy_shielded_sheet_ready);
+    UnloadEnemySheet(&enemy_flying_sheet, &enemy_flying_sheet_attempted, &enemy_flying_sheet_ready);
+    UnloadEnemySheet(&enemy_boss_sheet, &enemy_boss_sheet_attempted, &enemy_boss_sheet_ready);
 }
 
 // Get sprite index for enemy type
@@ -342,6 +363,27 @@ void DrawEnemies(const GameState *state, Texture2D spritesheet) {
                 ENEMY_SIMPLE_FRAME_SIZE, ENEMY_SIMPLE_FRAME_SIZE
             };
             DrawTexturePro(enemy_heavy_sheet, src, dest, origin, rotation, tint);
+        } else if (enemy->type == ENEMY_SHIELDED && enemy_shielded_sheet_ready) {
+            i32 frame_index = (i32)(GetTime() * ENEMY_ANIMATION_FPS) % ENEMY_SIMPLE_FRAME_COUNT;
+            Rectangle src = {
+                (f32)(frame_index * ENEMY_SIMPLE_FRAME_SIZE), 0,
+                ENEMY_SIMPLE_FRAME_SIZE, ENEMY_SIMPLE_FRAME_SIZE
+            };
+            DrawTexturePro(enemy_shielded_sheet, src, dest, origin, rotation, tint);
+        } else if (enemy->type == ENEMY_FLYING && enemy_flying_sheet_ready) {
+            i32 frame_index = (i32)(GetTime() * ENEMY_ANIMATION_FPS) % ENEMY_SIMPLE_FRAME_COUNT;
+            Rectangle src = {
+                (f32)(frame_index * ENEMY_SIMPLE_FRAME_SIZE), 0,
+                ENEMY_SIMPLE_FRAME_SIZE, ENEMY_SIMPLE_FRAME_SIZE
+            };
+            DrawTexturePro(enemy_flying_sheet, src, dest, origin, rotation, tint);
+        } else if (enemy->type == ENEMY_BOSS && enemy_boss_sheet_ready) {
+            i32 frame_index = (i32)(GetTime() * ENEMY_ANIMATION_FPS) % ENEMY_SIMPLE_FRAME_COUNT;
+            Rectangle src = {
+                (f32)(frame_index * ENEMY_SIMPLE_FRAME_SIZE), 0,
+                ENEMY_SIMPLE_FRAME_SIZE, ENEMY_SIMPLE_FRAME_SIZE
+            };
+            DrawTexturePro(enemy_boss_sheet, src, dest, origin, rotation, tint);
         } else {
             i32 sprite_id = GetEnemySpriteIndex(state, enemy->type);
             i32 src_x = (sprite_id % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
