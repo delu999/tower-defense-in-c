@@ -5,6 +5,59 @@
 #include <stdio.h>
 #include <math.h>
 
+// Animated spritesheets for enemies
+static Texture2D enemy_simple_sheet = {0};
+static bool enemy_simple_sheet_attempted = false;
+static bool enemy_simple_sheet_ready = false;
+
+static Texture2D enemy_fast_sheet = {0};
+static bool enemy_fast_sheet_attempted = false;
+static bool enemy_fast_sheet_ready = false;
+
+static Texture2D enemy_heavy_sheet = {0};
+static bool enemy_heavy_sheet_attempted = false;
+static bool enemy_heavy_sheet_ready = false;
+
+static bool LoadEnemySheet(Texture2D *tex, bool *attempted, bool *ready, const char *path, const char *label) {
+    if (*ready) return true;
+    if (*attempted) return *ready;
+    *attempted = true;
+    *tex = LoadTexture(path);
+    if (tex->id == 0) {
+        printf("Failed to load %s spritesheet\n", label);
+        return false;
+    }
+    SetTextureFilter(*tex, TEXTURE_FILTER_POINT);
+    *ready = true;
+    return true;
+}
+
+static void UnloadEnemySheet(Texture2D *tex, bool *attempted, bool *ready) {
+    if (tex->id != 0) {
+        UnloadTexture(*tex);
+        *tex = (Texture2D){0};
+    }
+    *ready = false;
+    *attempted = false;
+}
+
+bool LoadEnemyAssets(void) {
+    bool ok = true;
+    ok &= LoadEnemySheet(&enemy_simple_sheet, &enemy_simple_sheet_attempted, &enemy_simple_sheet_ready,
+                          "assets/sprites/enemies/01/Sprite-0001c.png", "enemy simple");
+    ok &= LoadEnemySheet(&enemy_fast_sheet, &enemy_fast_sheet_attempted, &enemy_fast_sheet_ready,
+                          "assets/sprites/enemies/02/Sprite-0002c.png", "enemy fast");
+    ok &= LoadEnemySheet(&enemy_heavy_sheet, &enemy_heavy_sheet_attempted, &enemy_heavy_sheet_ready,
+                          "assets/sprites/enemies/03/Sprite-0003c.png", "enemy heavy");
+    return ok;
+}
+
+void UnloadEnemyAssets(void) {
+    UnloadEnemySheet(&enemy_simple_sheet, &enemy_simple_sheet_attempted, &enemy_simple_sheet_ready);
+    UnloadEnemySheet(&enemy_fast_sheet, &enemy_fast_sheet_attempted, &enemy_fast_sheet_ready);
+    UnloadEnemySheet(&enemy_heavy_sheet, &enemy_heavy_sheet_attempted, &enemy_heavy_sheet_ready);
+}
+
 // Get sprite index for enemy type
 static i32 GetEnemySpriteIndex(const GameState *state, EnemyType type) {
     if (type < ENEMY_SIMPLE || type > ENEMY_BOSS) {
@@ -247,45 +300,74 @@ void DrawEnemies(const GameState *state, Texture2D spritesheet) {
         const Enemy *enemy = &state->enemies[i];
         if (!enemy->active) continue;
 
-        i32 sprite_id = GetEnemySpriteIndex(state, enemy->type);
-
-        // Calculate source rectangle (128x128 tiles, 23 columns)
-        i32 src_x = (sprite_id % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
-        i32 src_y = (sprite_id / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
-        Rectangle src = {src_x, src_y, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
-
-        // Destination (center the sprite on enemy position)
+        // Destination centered on enemy position (origin at center for rotation)
         Rectangle dest = {
-            enemy->position.x - TILE_SIZE / 2,
-            enemy->position.y - TILE_SIZE / 2,
+            enemy->position.x,
+            enemy->position.y,
             TILE_SIZE,
             TILE_SIZE
         };
+        Vector2 origin = {TILE_SIZE / 2.0f, TILE_SIZE / 2.0f};
 
-        // Draw shadow/wings for flying enemies
-        if (enemy->type == ENEMY_FLYING && state->enemy_config[enemy->type].overlay_sprite_id >= 0) {
-            i32 shadow_sprite = state->enemy_config[enemy->type].overlay_sprite_id;
-            i32 shadow_sx = (shadow_sprite % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
-            i32 shadow_sy = (shadow_sprite / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
-            Rectangle shadow_src = {shadow_sx, shadow_sy, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
-            DrawTexturePro(spritesheet, shadow_src, dest, (Vector2){0, 0}, 0, WHITE);
+        // Compute rotation from movement direction (sprite faces right at 0 degrees)
+        f32 rotation = 0.0f;
+        if (enemy->flow_move_dir.x != 0.0f || enemy->flow_move_dir.y != 0.0f) {
+            rotation = atan2f(enemy->flow_move_dir.y, enemy->flow_move_dir.x) * (180.0f / PI);
         }
 
-        // Draw shell layer for boss enemies
-        if (enemy->type == ENEMY_BOSS && state->enemy_config[enemy->type].overlay_sprite_id >= 0) {
-            i32 shell_sprite = state->enemy_config[enemy->type].overlay_sprite_id;
-            i32 shell_sx = (shell_sprite % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
-            i32 shell_sy = (shell_sprite / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
-            Rectangle shell_src = {shell_sx, shell_sy, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
-            DrawTexturePro(spritesheet, shell_src, dest, (Vector2){0, 0}, 0, WHITE);
-        }
-
-        // Draw main enemy sprite
         Color tint = WHITE;
         if (enemy->freeze_timer > 0) {
-            tint = SKYBLUE;  // Tint frozen enemies
+            tint = SKYBLUE;
         }
-        DrawTexturePro(spritesheet, src, dest, (Vector2){0, 0}, 0, tint);
+
+        // Animated sprites for ENEMY_SIMPLE and ENEMY_FAST
+        if (enemy->type == ENEMY_SIMPLE && enemy_simple_sheet_ready) {
+            i32 frame_index = (i32)(GetTime() * ENEMY_ANIMATION_FPS) % ENEMY_SIMPLE_FRAME_COUNT;
+            Rectangle src = {
+                (f32)(frame_index * ENEMY_SIMPLE_FRAME_SIZE), 0,
+                ENEMY_SIMPLE_FRAME_SIZE, ENEMY_SIMPLE_FRAME_SIZE
+            };
+            DrawTexturePro(enemy_simple_sheet, src, dest, origin, rotation, tint);
+        } else if (enemy->type == ENEMY_FAST && enemy_fast_sheet_ready) {
+            i32 frame_index = (i32)(GetTime() * ENEMY_ANIMATION_FPS) % ENEMY_SIMPLE_FRAME_COUNT;
+            Rectangle src = {
+                (f32)(frame_index * ENEMY_SIMPLE_FRAME_SIZE), 0,
+                ENEMY_SIMPLE_FRAME_SIZE, ENEMY_SIMPLE_FRAME_SIZE
+            };
+            DrawTexturePro(enemy_fast_sheet, src, dest, origin, rotation, tint);
+        } else if (enemy->type == ENEMY_HEAVY && enemy_heavy_sheet_ready) {
+            i32 frame_index = (i32)(GetTime() * ENEMY_ANIMATION_FPS) % ENEMY_SIMPLE_FRAME_COUNT;
+            Rectangle src = {
+                (f32)(frame_index * ENEMY_SIMPLE_FRAME_SIZE), 0,
+                ENEMY_SIMPLE_FRAME_SIZE, ENEMY_SIMPLE_FRAME_SIZE
+            };
+            DrawTexturePro(enemy_heavy_sheet, src, dest, origin, rotation, tint);
+        } else {
+            i32 sprite_id = GetEnemySpriteIndex(state, enemy->type);
+            i32 src_x = (sprite_id % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+            i32 src_y = (sprite_id / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+            Rectangle src = {src_x, src_y, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
+
+            // Draw shadow/wings for flying enemies
+            if (enemy->type == ENEMY_FLYING && state->enemy_config[enemy->type].overlay_sprite_id >= 0) {
+                i32 shadow_sprite = state->enemy_config[enemy->type].overlay_sprite_id;
+                i32 shadow_sx = (shadow_sprite % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+                i32 shadow_sy = (shadow_sprite / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+                Rectangle shadow_src = {shadow_sx, shadow_sy, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
+                DrawTexturePro(spritesheet, shadow_src, dest, origin, rotation, WHITE);
+            }
+
+            // Draw shell layer for boss enemies
+            if (enemy->type == ENEMY_BOSS && state->enemy_config[enemy->type].overlay_sprite_id >= 0) {
+                i32 shell_sprite = state->enemy_config[enemy->type].overlay_sprite_id;
+                i32 shell_sx = (shell_sprite % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+                i32 shell_sy = (shell_sprite / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+                Rectangle shell_src = {shell_sx, shell_sy, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
+                DrawTexturePro(spritesheet, shell_src, dest, origin, rotation, WHITE);
+            }
+
+            DrawTexturePro(spritesheet, src, dest, origin, rotation, tint);
+        }
 
         // Health bar
         f32 health_ratio = enemy->health / enemy->max_health;

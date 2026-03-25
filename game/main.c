@@ -5,6 +5,7 @@
 #include "content.h"
 #include "config.h"
 #include "map.h"
+#include "enemy.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <dirent.h>
@@ -78,10 +79,15 @@ i32 main(void) {
     // Use point sampling for atlas sprites to avoid texture bleeding between tiles.
     SetTextureFilter(spritesheet, TEXTURE_FILTER_POINT);
 
+    LoadMapAssets();
+    LoadEnemyAssets();
+
     // Load font at large size for crisp rendering at all display sizes
     font = LoadFontEx("assets/fonts/Poppins-Regular.ttf", 96, 0, 0);
     if (font.texture.id == 0) {
         printf("Failed to load font!\n");
+        UnloadEnemyAssets();
+        UnloadMapAssets();
         UnloadTexture(spritesheet);
         CloseWindow();
         return 1;
@@ -353,6 +359,8 @@ i32 main(void) {
 
     // Cleanup
     CleanupGame(&state);
+    UnloadEnemyAssets();
+    UnloadMapAssets();
     UnloadTexture(spritesheet);
     UnloadFont(font);
     CloseWindow();

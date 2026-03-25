@@ -7,6 +7,8 @@
 
 // Map functions
 bool LoadMapFromConf(Map *map, const char *filename);
+bool LoadMapAssets(void);
+void UnloadMapAssets(void);
 void DrawMap(const Map *map, Texture2D spritesheet);
 bool IsBuildable(const Map *map, i32 grid_x, i32 grid_y);
 bool IsWalkable(const Map *map, i32 grid_x, i32 grid_y);

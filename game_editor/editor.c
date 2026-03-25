@@ -89,6 +89,155 @@ static Rectangle GetTabRect(i32 index) {
     };
 }
 
+static const char *SPAWN_FRAME_FILES[SPAWN_ANIMATION_FRAME_COUNT] = {
+    "assets/sprites/spawn/f00.png",
+    "assets/sprites/spawn/f01.png",
+    "assets/sprites/spawn/f02.png",
+    "assets/sprites/spawn/f03.png",
+    "assets/sprites/spawn/f04.png",
+    "assets/sprites/spawn/f05.png",
+    "assets/sprites/spawn/f06.png",
+    "assets/sprites/spawn/f07.png"
+};
+
+static const char *BASE_FRAME_FILES[SPAWN_ANIMATION_FRAME_COUNT] = {
+    "assets/sprites/base/f00.png",
+    "assets/sprites/base/f01.png",
+    "assets/sprites/base/f02.png",
+    "assets/sprites/base/f03.png",
+    "assets/sprites/base/f04.png",
+    "assets/sprites/base/f05.png",
+    "assets/sprites/base/f06.png",
+    "assets/sprites/base/f07.png"
+};
+
+static Texture2D spawn_frames[SPAWN_ANIMATION_FRAME_COUNT] = {0};
+static Texture2D base_frames[SPAWN_ANIMATION_FRAME_COUNT] = {0};
+static bool spawn_frames_attempted = false;
+static bool spawn_frames_ready = false;
+static bool base_frames_attempted = false;
+static bool base_frames_ready = false;
+
+static void ReleaseFrames(Texture2D *frames) {
+    for (i32 i = 0; i < SPAWN_ANIMATION_FRAME_COUNT; i++) {
+        if (frames[i].id != 0) {
+            UnloadTexture(frames[i]);
+            frames[i] = (Texture2D){0};
+        }
+    }
+}
+
+static bool LoadFrames(Texture2D *frames, const char *const *files, const char *label) {
+    for (i32 i = 0; i < SPAWN_ANIMATION_FRAME_COUNT; i++) {
+        frames[i] = LoadTexture(files[i]);
+        if (frames[i].id == 0) {
+            printf("Failed to load %s animation frame: %s\n", label, files[i]);
+            ReleaseFrames(frames);
+            return false;
+        }
+        SetTextureFilter(frames[i], TEXTURE_FILTER_POINT);
+    }
+
+    return true;
+}
+
+static bool LoadMarkerFrames(void) {
+    if (spawn_frames_ready && base_frames_ready) {
+        return true;
+    }
+
+    if (!spawn_frames_attempted) {
+        spawn_frames_attempted = true;
+        spawn_frames_ready = LoadFrames(spawn_frames, SPAWN_FRAME_FILES, "spawn");
+    }
+
+    if (!base_frames_attempted) {
+        base_frames_attempted = true;
+        base_frames_ready = LoadFrames(base_frames, BASE_FRAME_FILES, "base");
+    }
+
+    return spawn_frames_ready && base_frames_ready;
+}
+
+static void UnloadMarkerFrames(void) {
+    ReleaseFrames(spawn_frames);
+    ReleaseFrames(base_frames);
+    spawn_frames_ready = false;
+    spawn_frames_attempted = false;
+    base_frames_ready = false;
+    base_frames_attempted = false;
+}
+
+static void DrawSpawnMarker(const EditorState *ed, i32 grid_x, i32 grid_y) {
+    Rectangle cell = {
+        EDITOR_MAP_OFFSET_X + grid_x * TILE_SIZE,
+        EDITOR_MAP_OFFSET_Y + grid_y * TILE_SIZE,
+        TILE_SIZE,
+        TILE_SIZE
+    };
+
+    if (!LoadMarkerFrames()) {
+        DrawRectangleLinesEx(cell, 2.0f, GREEN);
+        DrawTextEx(ed->font,
+                   "S",
+                   (Vector2){cell.x + 2.0f, cell.y + 2.0f},
+                   16.0f,
+                   1.0f,
+                   GREEN);
+        return;
+    }
+
+    f32 pad = TILE_SIZE * 0.05f;
+    i32 frame_index = (i32)(GetTime() * SPAWN_ANIMATION_FPS) % SPAWN_ANIMATION_FRAME_COUNT;
+    Texture2D frame = spawn_frames[frame_index];
+    Rectangle src = {0.0f, 0.0f, (f32)frame.width, (f32)frame.height};
+    Rectangle dest = {
+        cell.x + pad,
+        cell.y + pad,
+        cell.width - pad * 2.0f,
+        cell.height - pad * 2.0f
+    };
+
+    DrawRectangleRec(cell, ColorAlpha(SKYBLUE, 0.12f));
+    DrawTexturePro(frame, src, dest, (Vector2){0, 0}, 0.0f, WHITE);
+    DrawRectangleLinesEx(cell, 2.0f, GREEN);
+}
+
+static void DrawBaseMarker(const EditorState *ed, i32 grid_x, i32 grid_y) {
+    Rectangle cell = {
+        EDITOR_MAP_OFFSET_X + grid_x * TILE_SIZE,
+        EDITOR_MAP_OFFSET_Y + grid_y * TILE_SIZE,
+        TILE_SIZE,
+        TILE_SIZE
+    };
+
+    if (!LoadMarkerFrames()) {
+        DrawRectangleLinesEx(cell, 2.0f, RED);
+        DrawTextEx(ed->font,
+                   "B",
+                   (Vector2){cell.x + 2.0f, cell.y + 2.0f},
+                   16.0f,
+                   1.0f,
+                   RED);
+        return;
+    }
+
+    f32 pad = TILE_SIZE * 0.05f;
+    i32 frame_index = (i32)(GetTime() * SPAWN_ANIMATION_FPS) % SPAWN_ANIMATION_FRAME_COUNT;
+    Texture2D frame = base_frames[frame_index];
+    Rectangle src = {0.0f, 0.0f, (f32)frame.width, (f32)frame.height};
+    Rectangle dest = {
+        cell.x + pad,
+        cell.y + pad,
+        cell.width - pad * 2.0f,
+        cell.height - pad * 2.0f
+    };
+
+    DrawRectangleRec(cell, ColorAlpha(RED, 0.12f));
+    DrawTexturePro(frame, src, dest, (Vector2){0, 0}, 0.0f, WHITE);
+    DrawRectangleLinesEx(cell, 2.0f, RED);
+}
+
 static void DrawSpriteAtGrid(const EditorState *ed, i32 sprite_id, i32 grid_x, i32 grid_y) {
     if (sprite_id < 0) {
         return;
@@ -403,6 +552,7 @@ void InitEditor(EditorState *ed) {
         printf("Failed to load spritesheet!\n");
     }
     SetTextureFilter(ed->spritesheet, TEXTURE_FILTER_POINT);
+    LoadMarkerFrames();
 
     ed->font = LoadFontEx("assets/fonts/Poppins-Regular.ttf", 96, 0, 0);
     if (ed->font.texture.id == 0) {
@@ -414,6 +564,7 @@ void InitEditor(EditorState *ed) {
 }
 
 void CleanupEditor(EditorState *ed) {
+    UnloadMarkerFrames();
     if (ed->spritesheet.id != 0) {
         UnloadTexture(ed->spritesheet);
     }
@@ -1475,33 +1626,9 @@ static void DrawLevelSection(const EditorState *ed) {
             DrawSpriteAtGrid(ed, ed->map.tiles[y][x], x, y);
 
             if (ed->map.cell_types[y][x] == TILE_SPAWN) {
-                DrawRectangleLinesEx(
-                    (Rectangle){EDITOR_MAP_OFFSET_X + x * TILE_SIZE,
-                                EDITOR_MAP_OFFSET_Y + y * TILE_SIZE,
-                                TILE_SIZE,
-                                TILE_SIZE},
-                    2,
-                    GREEN);
-                DrawTextEx(ed->font,
-                           "S",
-                           (Vector2){EDITOR_MAP_OFFSET_X + x * TILE_SIZE + 2, EDITOR_MAP_OFFSET_Y + y * TILE_SIZE + 2},
-                           16,
-                           1,
-                           GREEN);
+                DrawSpawnMarker(ed, x, y);
             } else if (ed->map.cell_types[y][x] == TILE_BASE) {
-                DrawRectangleLinesEx(
-                    (Rectangle){EDITOR_MAP_OFFSET_X + x * TILE_SIZE,
-                                EDITOR_MAP_OFFSET_Y + y * TILE_SIZE,
-                                TILE_SIZE,
-                                TILE_SIZE},
-                    2,
-                    RED);
-                DrawTextEx(ed->font,
-                           "B",
-                           (Vector2){EDITOR_MAP_OFFSET_X + x * TILE_SIZE + 2, EDITOR_MAP_OFFSET_Y + y * TILE_SIZE + 2},
-                           16,
-                           1,
-                           RED);
+                DrawBaseMarker(ed, x, y);
             }
         }
     }

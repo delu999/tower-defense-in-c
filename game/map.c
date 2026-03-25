@@ -4,6 +4,35 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+static const char *SPAWN_FRAME_FILES[SPAWN_ANIMATION_FRAME_COUNT] = {
+    "assets/sprites/spawn/f00.png",
+    "assets/sprites/spawn/f01.png",
+    "assets/sprites/spawn/f02.png",
+    "assets/sprites/spawn/f03.png",
+    "assets/sprites/spawn/f04.png",
+    "assets/sprites/spawn/f05.png",
+    "assets/sprites/spawn/f06.png",
+    "assets/sprites/spawn/f07.png"
+};
+
+static const char *BASE_FRAME_FILES[SPAWN_ANIMATION_FRAME_COUNT] = {
+    "assets/sprites/base/f00.png",
+    "assets/sprites/base/f01.png",
+    "assets/sprites/base/f02.png",
+    "assets/sprites/base/f03.png",
+    "assets/sprites/base/f04.png",
+    "assets/sprites/base/f05.png",
+    "assets/sprites/base/f06.png",
+    "assets/sprites/base/f07.png"
+};
+
+static Texture2D spawn_frames[SPAWN_ANIMATION_FRAME_COUNT] = {0};
+static Texture2D base_frames[SPAWN_ANIMATION_FRAME_COUNT] = {0};
+static bool spawn_frames_attempted = false;
+static bool spawn_frames_ready = false;
+static bool base_frames_attempted = false;
+static bool base_frames_ready = false;
+
 // Helper to draw a sprite from the spritesheet at a grid position
 static void DrawSpriteAtGrid(Texture2D spritesheet, i32 sprite_id, i32 grid_x, i32 grid_y) {
     if (sprite_id < 0) {
@@ -20,7 +49,57 @@ static void DrawSpriteAtGrid(Texture2D spritesheet, i32 sprite_id, i32 grid_x, i
     DrawTexturePro(spritesheet, src, dest, (Vector2){0, 0}, 0, WHITE);
 }
 
-static void DrawSpawnMarker(i32 grid_x, i32 grid_y) {
+static void ReleaseFrames(Texture2D *frames) {
+    for (i32 i = 0; i < SPAWN_ANIMATION_FRAME_COUNT; i++) {
+        if (frames[i].id != 0) {
+            UnloadTexture(frames[i]);
+            frames[i] = (Texture2D){0};
+        }
+    }
+}
+
+static bool LoadFrames(Texture2D *frames, const char *const *files, const char *label) {
+    for (i32 i = 0; i < SPAWN_ANIMATION_FRAME_COUNT; i++) {
+        frames[i] = LoadTexture(files[i]);
+        if (frames[i].id == 0) {
+            printf("Failed to load %s animation frame: %s\n", label, files[i]);
+            ReleaseFrames(frames);
+            return false;
+        }
+        SetTextureFilter(frames[i], TEXTURE_FILTER_POINT);
+    }
+
+    return true;
+}
+
+bool LoadMapAssets(void) {
+    if (spawn_frames_ready && base_frames_ready) {
+        return true;
+    }
+
+    if (!spawn_frames_attempted) {
+        spawn_frames_attempted = true;
+        spawn_frames_ready = LoadFrames(spawn_frames, SPAWN_FRAME_FILES, "spawn");
+    }
+
+    if (!base_frames_attempted) {
+        base_frames_attempted = true;
+        base_frames_ready = LoadFrames(base_frames, BASE_FRAME_FILES, "base");
+    }
+
+    return spawn_frames_ready && base_frames_ready;
+}
+
+void UnloadMapAssets(void) {
+    ReleaseFrames(spawn_frames);
+    ReleaseFrames(base_frames);
+    spawn_frames_ready = false;
+    spawn_frames_attempted = false;
+    base_frames_ready = false;
+    base_frames_attempted = false;
+}
+
+static void DrawSpawnFallbackMarker(i32 grid_x, i32 grid_y) {
     f32 px = MAP_OFFSET_X + grid_x * TILE_SIZE;
     f32 py = MAP_OFFSET_Y + grid_y * TILE_SIZE;
     Rectangle cell = {px, py, TILE_SIZE, TILE_SIZE};
@@ -34,18 +113,66 @@ static void DrawSpawnMarker(i32 grid_x, i32 grid_y) {
     DrawCircleLines((i32)center.x, (i32)center.y, r, WHITE);
 }
 
+static void DrawSpawnMarker(i32 grid_x, i32 grid_y) {
+    f32 px = MAP_OFFSET_X + grid_x * TILE_SIZE;
+    f32 py = MAP_OFFSET_Y + grid_y * TILE_SIZE;
+    Rectangle cell = {px, py, TILE_SIZE, TILE_SIZE};
+    f32 pad = TILE_SIZE * 0.05f;
+
+    if (!LoadMapAssets()) {
+        DrawSpawnFallbackMarker(grid_x, grid_y);
+        return;
+    }
+
+    i32 frame_index = (i32)(GetTime() * SPAWN_ANIMATION_FPS) % SPAWN_ANIMATION_FRAME_COUNT;
+    Texture2D frame = spawn_frames[frame_index];
+    Rectangle src = {0.0f, 0.0f, (f32)frame.width, (f32)frame.height};
+    Rectangle dest = {
+        px + pad,
+        py + pad,
+        TILE_SIZE - pad * 2.0f,
+        TILE_SIZE - pad * 2.0f
+    };
+
+    DrawRectangleRec(cell, ColorAlpha(SKYBLUE, 0.12f));
+    DrawTexturePro(frame, src, dest, (Vector2){0, 0}, 0.0f, WHITE);
+    DrawRectangleLinesEx((Rectangle){px + pad, py + pad, TILE_SIZE - pad * 2.0f, TILE_SIZE - pad * 2.0f},
+                         1.5f,
+                         ColorAlpha(BLUE, 0.55f));
+}
+
 static void DrawBaseMarker(i32 grid_x, i32 grid_y) {
     f32 px = MAP_OFFSET_X + grid_x * TILE_SIZE;
     f32 py = MAP_OFFSET_Y + grid_y * TILE_SIZE;
     Rectangle cell = {px, py, TILE_SIZE, TILE_SIZE};
-    Vector2 center = GridToWorld(grid_x, grid_y);
-    f32 half = TILE_SIZE * 0.18f;
-    f32 pad = TILE_SIZE * 0.08f;
+    f32 pad = TILE_SIZE * 0.05f;
 
-    DrawRectangleRec(cell, ColorAlpha(RED, 0.26f));
-    DrawRectangleLinesEx((Rectangle){px + pad, py + pad, TILE_SIZE - pad * 2.0f, TILE_SIZE - pad * 2.0f}, 2.0f, RED);
-    DrawRectangleV((Vector2){center.x - half, center.y - half}, (Vector2){half * 2.0f, half * 2.0f}, GOLD);
-    DrawRectangleLines((i32)(center.x - half), (i32)(center.y - half), (i32)(half * 2.0f), (i32)(half * 2.0f), WHITE);
+    if (!LoadMapAssets()) {
+        Vector2 center = GridToWorld(grid_x, grid_y);
+        f32 half = TILE_SIZE * 0.18f;
+
+        DrawRectangleRec(cell, ColorAlpha(RED, 0.26f));
+        DrawRectangleLinesEx((Rectangle){px + pad, py + pad, TILE_SIZE - pad * 2.0f, TILE_SIZE - pad * 2.0f}, 2.0f, RED);
+        DrawRectangleV((Vector2){center.x - half, center.y - half}, (Vector2){half * 2.0f, half * 2.0f}, GOLD);
+        DrawRectangleLines((i32)(center.x - half), (i32)(center.y - half), (i32)(half * 2.0f), (i32)(half * 2.0f), WHITE);
+        return;
+    }
+
+    i32 frame_index = (i32)(GetTime() * SPAWN_ANIMATION_FPS) % SPAWN_ANIMATION_FRAME_COUNT;
+    Texture2D frame = base_frames[frame_index];
+    Rectangle src = {0.0f, 0.0f, (f32)frame.width, (f32)frame.height};
+    Rectangle dest = {
+        px + pad,
+        py + pad,
+        TILE_SIZE - pad * 2.0f,
+        TILE_SIZE - pad * 2.0f
+    };
+
+    DrawRectangleRec(cell, ColorAlpha(RED, 0.12f));
+    DrawTexturePro(frame, src, dest, (Vector2){0, 0}, 0.0f, WHITE);
+    DrawRectangleLinesEx((Rectangle){px + pad, py + pad, TILE_SIZE - pad * 2.0f, TILE_SIZE - pad * 2.0f},
+                         1.5f,
+                         ColorAlpha(RED, 0.7f));
 }
 
 void DrawMap(const Map *map, Texture2D spritesheet) {

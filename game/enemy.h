@@ -4,6 +4,10 @@
 #include "game.h"
 #include "raylib.h"
 
+// Enemy asset management
+bool LoadEnemyAssets(void);
+void UnloadEnemyAssets(void);
+
 // Enemy functions
 i32 SpawnEnemy(GameState *state, EnemyType type, Vector2 spawn_pos, f32 difficulty);
 void UpdateEnemies(GameState *state, f32 dt);
