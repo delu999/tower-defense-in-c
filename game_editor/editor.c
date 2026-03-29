@@ -242,16 +242,24 @@ static void DrawSpriteAtGrid(const EditorState *ed, i32 sprite_id, i32 grid_x, i
     if (sprite_id < 0) {
         return;
     }
-    i32 src_x = (sprite_id % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
-    i32 src_y = (sprite_id / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
-    Rectangle src = {(f32)src_x, (f32)src_y, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
     Rectangle dest = {
         EDITOR_MAP_OFFSET_X + grid_x * TILE_SIZE,
         EDITOR_MAP_OFFSET_Y + grid_y * TILE_SIZE,
         TILE_SIZE,
         TILE_SIZE
     };
-    DrawTexturePro(ed->spritesheet, src, dest, (Vector2){0, 0}, 0.0f, WHITE);
+    if (sprite_id >= SPRITE_TOTAL_TILES && ed->extra_tileset.id != 0) {
+        i32 idx = sprite_id - SPRITE_TOTAL_TILES;
+        i32 src_x = (idx % EXTRA_TILE_COLS) * EXTRA_TILE_SIZE;
+        i32 src_y = (idx / EXTRA_TILE_COLS) * EXTRA_TILE_SIZE;
+        Rectangle src = {(f32)src_x, (f32)src_y, EXTRA_TILE_SIZE, EXTRA_TILE_SIZE};
+        DrawTexturePro(ed->extra_tileset, src, dest, (Vector2){0, 0}, 0.0f, WHITE);
+    } else {
+        i32 src_x = (sprite_id % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+        i32 src_y = (sprite_id / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+        Rectangle src = {(f32)src_x, (f32)src_y, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
+        DrawTexturePro(ed->spritesheet, src, dest, (Vector2){0, 0}, 0.0f, WHITE);
+    }
 }
 
 static void DrawEditorGrid(const EditorState *ed) {
@@ -311,7 +319,8 @@ static void DrawPalette(const EditorState *ed) {
 
     i32 cols = EDITOR_PALETTE_COLS;
     i32 cell = PAL_TILE_SIZE + PAL_MARGIN;
-    i32 total_rows = (SPRITE_TOTAL_TILES + cols - 1) / cols;
+    i32 all_tiles = SPRITE_TOTAL_TILES + EXTRA_TILE_COUNT;
+    i32 total_rows = (all_tiles + cols - 1) / cols;
     i32 scroll = ed->palette_scroll;
     if (scroll > total_rows - PAL_VISIBLE_ROWS) scroll = total_rows - PAL_VISIBLE_ROWS;
     if (scroll < 0) scroll = 0;
@@ -323,16 +332,24 @@ static void DrawPalette(const EditorState *ed) {
     for (i32 row = scroll; row < scroll + PAL_VISIBLE_ROWS + 1 && row < total_rows; row++) {
         for (i32 col = 0; col < cols; col++) {
             i32 idx = row * cols + col;
-            if (idx >= SPRITE_TOTAL_TILES) break;
+            if (idx >= all_tiles) break;
 
             i32 tx = 4 + col * cell;
             i32 ty = grid_y0 + (row - scroll) * cell;
-
-            i32 src_x = (idx % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
-            i32 src_y = (idx / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
-            Rectangle src = {(f32)src_x, (f32)src_y, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
             Rectangle dest = {(f32)tx, (f32)ty, PAL_TILE_SIZE, PAL_TILE_SIZE};
-            DrawTexturePro(ed->spritesheet, src, dest, (Vector2){0, 0}, 0.0f, WHITE);
+
+            if (idx >= SPRITE_TOTAL_TILES) {
+                i32 extra_idx = idx - SPRITE_TOTAL_TILES;
+                i32 src_x = (extra_idx % EXTRA_TILE_COLS) * EXTRA_TILE_SIZE;
+                i32 src_y = (extra_idx / EXTRA_TILE_COLS) * EXTRA_TILE_SIZE;
+                Rectangle src = {(f32)src_x, (f32)src_y, EXTRA_TILE_SIZE, EXTRA_TILE_SIZE};
+                DrawTexturePro(ed->extra_tileset, src, dest, (Vector2){0, 0}, 0.0f, WHITE);
+            } else {
+                i32 src_x = (idx % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+                i32 src_y = (idx / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+                Rectangle src = {(f32)src_x, (f32)src_y, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
+                DrawTexturePro(ed->spritesheet, src, dest, (Vector2){0, 0}, 0.0f, WHITE);
+            }
 
             if (idx == ed->selected_sprite) {
                 DrawRectangleLinesEx(dest, 2, YELLOW);
@@ -552,6 +569,13 @@ void InitEditor(EditorState *ed) {
         printf("Failed to load spritesheet!\n");
     }
     SetTextureFilter(ed->spritesheet, TEXTURE_FILTER_POINT);
+
+    ed->extra_tileset = LoadTexture("assets/sprites/Sprite-0002.png");
+    if (ed->extra_tileset.id == 0) {
+        printf("Failed to load extra tileset!\n");
+    }
+    SetTextureFilter(ed->extra_tileset, TEXTURE_FILTER_POINT);
+
     LoadMarkerFrames();
 
     ed->font = LoadFontEx("assets/fonts/Poppins-Regular.ttf", 96, 0, 0);
@@ -567,6 +591,9 @@ void CleanupEditor(EditorState *ed) {
     UnloadMarkerFrames();
     if (ed->spritesheet.id != 0) {
         UnloadTexture(ed->spritesheet);
+    }
+    if (ed->extra_tileset.id != 0) {
+        UnloadTexture(ed->extra_tileset);
     }
     if (ed->font.texture.id != 0) {
         UnloadFont(ed->font);
@@ -1366,7 +1393,8 @@ static void UpdateLevelSection(EditorState *ed) {
 
             i32 cell = PAL_TILE_SIZE + PAL_MARGIN;
             i32 cols = EDITOR_PALETTE_COLS;
-            i32 total_rows = (SPRITE_TOTAL_TILES + cols - 1) / cols;
+            i32 all_tiles = SPRITE_TOTAL_TILES + EXTRA_TILE_COUNT;
+            i32 total_rows = (all_tiles + cols - 1) / cols;
             i32 scroll = ed->palette_scroll;
             if (scroll > total_rows - PAL_VISIBLE_ROWS) scroll = total_rows - PAL_VISIBLE_ROWS;
             if (scroll < 0) scroll = 0;
@@ -1377,7 +1405,7 @@ static void UpdateLevelSection(EditorState *ed) {
                 i32 row = row_in_view + scroll;
                 if (col >= 0 && col < cols) {
                     i32 idx = row * cols + col;
-                    if (idx >= 0 && idx < SPRITE_TOTAL_TILES) {
+                    if (idx >= 0 && idx < all_tiles) {
                         ed->selected_sprite = idx;
                         ed->erase_mode = false;
                     }
@@ -1390,7 +1418,7 @@ static void UpdateLevelSection(EditorState *ed) {
         i32 wheel = (i32)GetMouseWheelMove();
         if (wheel != 0) {
             ed->palette_scroll -= wheel * 2;
-            i32 total_rows = (SPRITE_TOTAL_TILES + EDITOR_PALETTE_COLS - 1) / EDITOR_PALETTE_COLS;
+            i32 total_rows = (SPRITE_TOTAL_TILES + EXTRA_TILE_COUNT + EDITOR_PALETTE_COLS - 1) / EDITOR_PALETTE_COLS;
             if (ed->palette_scroll > total_rows - PAL_VISIBLE_ROWS) ed->palette_scroll = total_rows - PAL_VISIBLE_ROWS;
             if (ed->palette_scroll < 0) ed->palette_scroll = 0;
         }

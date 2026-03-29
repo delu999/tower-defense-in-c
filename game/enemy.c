@@ -56,17 +56,17 @@ static void UnloadEnemySheet(Texture2D *tex, bool *attempted, bool *ready) {
 bool LoadEnemyAssets(void) {
     bool ok = true;
     ok &= LoadEnemySheet(&enemy_simple_sheet, &enemy_simple_sheet_attempted, &enemy_simple_sheet_ready,
-                          "assets/sprites/enemies/c01/01.png", "enemy simple");
+                          "assets/sprites/enemies/c01/01b.png", "enemy simple");
     ok &= LoadEnemySheet(&enemy_fast_sheet, &enemy_fast_sheet_attempted, &enemy_fast_sheet_ready,
-                          "assets/sprites/enemies/c01/02.png", "enemy fast");
+                          "assets/sprites/enemies/c01/02b.png", "enemy fast");
     ok &= LoadEnemySheet(&enemy_heavy_sheet, &enemy_heavy_sheet_attempted, &enemy_heavy_sheet_ready,
-                          "assets/sprites/enemies/c01/03.png", "enemy heavy");
+                          "assets/sprites/enemies/c01/03b.png", "enemy heavy");
     ok &= LoadEnemySheet(&enemy_flying_sheet, &enemy_flying_sheet_attempted, &enemy_flying_sheet_ready,
-                          "assets/sprites/enemies/c01/04.png", "enemy flying");
+                          "assets/sprites/enemies/c01/04b.png", "enemy flying");
     ok &= LoadEnemySheet(&enemy_shielded_sheet, &enemy_shielded_sheet_attempted, &enemy_shielded_sheet_ready,
-                          "assets/sprites/enemies/c01/05.png", "enemy shielded");
+                          "assets/sprites/enemies/c01/05b.png", "enemy shielded");
     ok &= LoadEnemySheet(&enemy_boss_sheet, &enemy_boss_sheet_attempted, &enemy_boss_sheet_ready,
-                          "assets/sprites/enemies/c01/06.png", "enemy boss");
+                          "assets/sprites/enemies/c01/06b.png", "enemy boss");
     return ok;
 }
 
@@ -235,20 +235,10 @@ void UpdateEnemies(GameState *state, f32 dt) {
         }
 
         if (enemy->type == ENEMY_FLYING) {
-            if (state->map.base_count <= 0) continue;
+            i32 grid_x, grid_y;
+            WorldToGrid(enemy->position, &grid_x, &grid_y);
 
-            Vector2 base_world = GridToWorld(
-                (i32)state->map.base_points[0].x,
-                (i32)state->map.base_points[0].y
-            );
-
-            Vector2 dir = {
-                base_world.x - enemy->position.x,
-                base_world.y - enemy->position.y
-            };
-            f32 dist = sqrtf(dir.x * dir.x + dir.y * dir.y);
-
-            if (dist < 4.0f) {
+            if (GetTileType(&state->map, grid_x, grid_y) == TILE_BASE) {
                 state->base_life -= enemy->damage_to_base;
                 printf("Enemy reached base! Base life: %d\n", state->base_life);
                 RemoveEnemy(state, i);
@@ -256,12 +246,36 @@ void UpdateEnemies(GameState *state, f32 dt) {
                 continue;
             }
 
-            dir.x /= dist;
-            dir.y /= dist;
+            if (!state->flying_flow_field ||
+                grid_x < 0 || grid_x >= state->map.width ||
+                grid_y < 0 || grid_y >= state->map.height) {
+                continue;
+            }
 
+            i32 idx = grid_y * state->map.width + grid_x;
+            Direction fdir = state->flying_flow_field[idx];
+            if (!IsValidDirection(fdir) || fdir == DIR_NONE) {
+                enemy->flow_move_dir = (Vector2){0.0f, 0.0f};
+                continue;
+            }
+
+            if (IsNearTileCenter(enemy->position, grid_x, grid_y) ||
+                (enemy->flow_move_dir.x == 0.0f && enemy->flow_move_dir.y == 0.0f)) {
+                enemy->flow_move_dir = DirToVec(fdir);
+            }
+
+            Vector2 v = enemy->flow_move_dir;
             f32 speed = enemy->base_speed * enemy->speed_factor;
-            enemy->position.x += dir.x * speed * dt;
-            enemy->position.y += dir.y * speed * dt;
+            enemy->position.x += v.x * speed * dt;
+            enemy->position.y += v.y * speed * dt;
+
+            WorldToGrid(enemy->position, &grid_x, &grid_y);
+            if (GetTileType(&state->map, grid_x, grid_y) == TILE_BASE) {
+                state->base_life -= enemy->damage_to_base;
+                printf("Enemy reached base! Base life: %d\n", state->base_life);
+                RemoveEnemy(state, i);
+                i--;
+            }
             continue;
         }
 

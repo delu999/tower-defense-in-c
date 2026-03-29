@@ -12,8 +12,7 @@
 #define EDITOR_MAX_FILES 64
 #define EDITOR_LEVEL_NAME_MAX 64
 
-#define SPRITE_SHEET_ROWS 13
-#define SPRITE_TOTAL_TILES (SPRITE_SHEET_COLS * SPRITE_SHEET_ROWS)
+// SPRITE_SHEET_ROWS and SPRITE_TOTAL_TILES are in config.h
 
 typedef enum {
     EDITOR_SECTION_LEVELS,
@@ -86,6 +85,7 @@ typedef struct {
     bool modified;
 
     Texture2D spritesheet;
+    Texture2D extra_tileset;
     Font font;
 
     i32 last_paint_x, last_paint_y;

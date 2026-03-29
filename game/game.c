@@ -26,6 +26,10 @@ void InitGame(GameState *state, i32 level) {
         free(state->flow_field);
         state->flow_field = NULL;
     }
+    if (state->flying_flow_field) {
+        free(state->flying_flow_field);
+        state->flying_flow_field = NULL;
+    }
     state->show_flow_field = false;
 
     // Clear all entities
@@ -41,6 +45,12 @@ void InitGame(GameState *state, i32 level) {
     state->flow_field = CreateFlowField(&state->map);
     if (!state->flow_field) {
         printf("WARNING: Failed to create flow field\n");
+    }
+
+    // Flying enemies use the initial flow field (no turrets blocking)
+    state->flying_flow_field = CreateFlowField(&state->map);
+    if (!state->flying_flow_field) {
+        printf("WARNING: Failed to create flying flow field\n");
     }
 
     // Initialize wave manager from loaded level config.
@@ -144,6 +154,10 @@ void CleanupGame(GameState *state) {
     if (state->flow_field) {
         free(state->flow_field);
         state->flow_field = NULL;
+    }
+    if (state->flying_flow_field) {
+        free(state->flying_flow_field);
+        state->flying_flow_field = NULL;
     }
     printf("Game cleaned up.\n");
 }

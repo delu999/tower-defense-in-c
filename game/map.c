@@ -33,20 +33,32 @@ static bool spawn_frames_ready = false;
 static bool base_frames_attempted = false;
 static bool base_frames_ready = false;
 
+static Texture2D extra_tileset = {0};
+static bool extra_tileset_attempted = false;
+static bool extra_tileset_ready = false;
+
 // Helper to draw a sprite from the spritesheet at a grid position
 static void DrawSpriteAtGrid(Texture2D spritesheet, i32 sprite_id, i32 grid_x, i32 grid_y) {
     if (sprite_id < 0) {
         return;
     }
-    i32 src_x = (sprite_id % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
-    i32 src_y = (sprite_id / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
-    Rectangle src = {src_x, src_y, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
     Rectangle dest = {
         MAP_OFFSET_X + grid_x * TILE_SIZE,
         MAP_OFFSET_Y + grid_y * TILE_SIZE,
         TILE_SIZE, TILE_SIZE
     };
-    DrawTexturePro(spritesheet, src, dest, (Vector2){0, 0}, 0, WHITE);
+    if (sprite_id >= SPRITE_TOTAL_TILES && extra_tileset_ready) {
+        i32 idx = sprite_id - SPRITE_TOTAL_TILES;
+        i32 src_x = (idx % EXTRA_TILE_COLS) * EXTRA_TILE_SIZE;
+        i32 src_y = (idx / EXTRA_TILE_COLS) * EXTRA_TILE_SIZE;
+        Rectangle src = {src_x, src_y, EXTRA_TILE_SIZE, EXTRA_TILE_SIZE};
+        DrawTexturePro(extra_tileset, src, dest, (Vector2){0, 0}, 0, WHITE);
+    } else {
+        i32 src_x = (sprite_id % SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+        i32 src_y = (sprite_id / SPRITE_SHEET_COLS) * SPRITE_TILE_SIZE;
+        Rectangle src = {src_x, src_y, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE};
+        DrawTexturePro(spritesheet, src, dest, (Vector2){0, 0}, 0, WHITE);
+    }
 }
 
 static void ReleaseFrames(Texture2D *frames) {
@@ -73,10 +85,6 @@ static bool LoadFrames(Texture2D *frames, const char *const *files, const char *
 }
 
 bool LoadMapAssets(void) {
-    if (spawn_frames_ready && base_frames_ready) {
-        return true;
-    }
-
     if (!spawn_frames_attempted) {
         spawn_frames_attempted = true;
         spawn_frames_ready = LoadFrames(spawn_frames, SPAWN_FRAME_FILES, "spawn");
@@ -85,6 +93,17 @@ bool LoadMapAssets(void) {
     if (!base_frames_attempted) {
         base_frames_attempted = true;
         base_frames_ready = LoadFrames(base_frames, BASE_FRAME_FILES, "base");
+    }
+
+    if (!extra_tileset_attempted) {
+        extra_tileset_attempted = true;
+        extra_tileset = LoadTexture("assets/sprites/Sprite-0002.png");
+        if (extra_tileset.id == 0) {
+            printf("Failed to load extra tileset\n");
+        } else {
+            SetTextureFilter(extra_tileset, TEXTURE_FILTER_POINT);
+            extra_tileset_ready = true;
+        }
     }
 
     return spawn_frames_ready && base_frames_ready;
@@ -97,6 +116,16 @@ void UnloadMapAssets(void) {
     spawn_frames_attempted = false;
     base_frames_ready = false;
     base_frames_attempted = false;
+    if (extra_tileset.id != 0) {
+        UnloadTexture(extra_tileset);
+        extra_tileset = (Texture2D){0};
+    }
+    extra_tileset_ready = false;
+    extra_tileset_attempted = false;
+}
+
+Texture2D GetExtraTileset(void) {
+    return extra_tileset;
 }
 
 static void DrawSpawnFallbackMarker(i32 grid_x, i32 grid_y) {

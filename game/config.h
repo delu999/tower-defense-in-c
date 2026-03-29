@@ -64,6 +64,8 @@ typedef struct {
 // Spritesheet layout (@2 retina: 128x128 tiles, 23 columns x 13 rows)
 #define SPRITE_TILE_SIZE 128
 #define SPRITE_SHEET_COLS 23
+#define SPRITE_SHEET_ROWS 13
+#define SPRITE_TOTAL_TILES (SPRITE_SHEET_COLS * SPRITE_SHEET_ROWS)
 #define SPAWN_ANIMATION_FRAME_COUNT 8
 #define SPAWN_ANIMATION_FPS 6.0
 
@@ -71,6 +73,12 @@ typedef struct {
 #define ENEMY_SIMPLE_FRAME_COUNT 4
 #define ENEMY_SIMPLE_FRAME_SIZE 32
 #define ENEMY_ANIMATION_FPS 8.0
+
+// Extra tileset (Sprite-0002.png: 32x32 tiles, 4 cols x 4 rows)
+#define EXTRA_TILE_SIZE 32
+#define EXTRA_TILE_COLS 4
+#define EXTRA_TILE_ROWS 4
+#define EXTRA_TILE_COUNT (EXTRA_TILE_COLS * EXTRA_TILE_ROWS)
 
 // Helper: Kenney tile number maps directly to spritesheet index
 // (index 0 in the sheet is unused; tile001 is at index 1, tile002 at index 2, etc.)

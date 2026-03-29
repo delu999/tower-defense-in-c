@@ -163,6 +163,7 @@ typedef struct {
     i32 current_level;
     UIState *ui;  // Pointer to avoid circular dependency
     Direction *flow_field;
+    Direction *flying_flow_field;
     bool show_flow_field;
     bool paused;
     char level_name[LEVEL_NAME_LEN];
