@@ -56,17 +56,17 @@ static void UnloadEnemySheet(Texture2D *tex, bool *attempted, bool *ready) {
 bool LoadEnemyAssets(void) {
     bool ok = true;
     ok &= LoadEnemySheet(&enemy_simple_sheet, &enemy_simple_sheet_attempted, &enemy_simple_sheet_ready,
-                          "assets/sprites/enemies/c01/01b.png", "enemy simple");
+                          "assets/sprites/enemies/c01/01.png", "enemy simple");
     ok &= LoadEnemySheet(&enemy_fast_sheet, &enemy_fast_sheet_attempted, &enemy_fast_sheet_ready,
-                          "assets/sprites/enemies/c01/02b.png", "enemy fast");
+                          "assets/sprites/enemies/c01/02.png", "enemy fast");
     ok &= LoadEnemySheet(&enemy_heavy_sheet, &enemy_heavy_sheet_attempted, &enemy_heavy_sheet_ready,
-                          "assets/sprites/enemies/c01/03b.png", "enemy heavy");
+                          "assets/sprites/enemies/c01/03.png", "enemy heavy");
     ok &= LoadEnemySheet(&enemy_flying_sheet, &enemy_flying_sheet_attempted, &enemy_flying_sheet_ready,
-                          "assets/sprites/enemies/c01/04b.png", "enemy flying");
+                          "assets/sprites/enemies/c01/04.png", "enemy flying");
     ok &= LoadEnemySheet(&enemy_shielded_sheet, &enemy_shielded_sheet_attempted, &enemy_shielded_sheet_ready,
-                          "assets/sprites/enemies/c01/05b.png", "enemy shielded");
+                          "assets/sprites/enemies/c01/05.png", "enemy shielded");
     ok &= LoadEnemySheet(&enemy_boss_sheet, &enemy_boss_sheet_attempted, &enemy_boss_sheet_ready,
-                          "assets/sprites/enemies/c01/06b.png", "enemy boss");
+                          "assets/sprites/enemies/c01/06.png", "enemy boss");
     return ok;
 }
 
